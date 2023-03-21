@@ -25,6 +25,9 @@ from urllib.parse import parse_qs, urlparse
 import bs4
 import requests
 
+from byre import utils
+from byre.data import ByrUser
+
 _logger = logging.getLogger("byre.api")
 _debug, _info, _warning, _fatal = _logger.debug, _logger.info, _logger.warning, _logger.fatal
 
@@ -105,6 +108,10 @@ class ByrClient:
     except ConnectionError:
       return False
 
+  def close(self):
+    """关闭 `requests.Session` 资源。"""
+    self._session.close()
+
   def _update_session_from_cache(self):
     """从缓存文件里获取 Cookies，如果登录信息有效则返回 `True`。"""
     if os.path.exists(self._cookie_file):
@@ -179,3 +186,115 @@ class ByrClient:
       os.makedirs(path)
     with open(self._cookie_file, "wb") as file:
       pickle.dump(cookies, file)
+
+_LEVEL = "等级"
+_MANA = "魔力值"
+_INVITATIONS = "邀请"
+_TRANSFER = "传输"
+
+class ByrApi:
+  """北邮人 PT 站爬虫，提供站点部分信息的读取 API。"""
+
+  client: ByrClient
+
+  _user_id=0
+  """当前用户 ID。"""
+
+
+  def __init__(self, client: ByrClient) -> None:
+    self.client = client
+    if not client.is_logged_in():
+      client.login()
+
+  def close(self):
+    """关闭所用的资源。"""
+    self.client.close()
+
+  def current_user_id(self):
+    """获取当前用户 ID。"""
+    if self._user_id != 0:
+      return self._user_id
+    page = self.client.get_soup("")
+    user_id = int(
+      parse_qs(urlparse(page.select("a[class=User_Name]")[0].attrs["href"]).query)["id"][0]
+    )
+    _debug("提取的用户 ID 为：%d", user_id)
+    self._user_id = user_id
+    return user_id
+
+  def user_info(self, user_id=0):
+    """获取用户信息。"""
+    if user_id == 0:
+      user_id = self.current_user_id()
+
+    page = self.client.get_soup(f"userdetails.php?id={user_id}")
+    user = ByrUser()
+
+    user.user_id = user_id
+
+    name = page.find("h1")
+    user.username = "" if name is None else name.get_text(strip=True)
+
+    info_entries = page.select("td.embedded>table>tr")
+    info: dict[str, bs4.Tag] = {}
+    for entry in info_entries:
+      cells: bs4.ResultSet[bs4.Tag] = entry.find_all("td", recursive=False)
+      if len(cells) != 2:
+        continue
+      info[cells[0].get_text(strip=True)] = cells[1]
+
+    self._extract_user_info(user, info)
+    if user_id == self.current_user_id():
+      self._extract_info_bar(user, page)
+    return user
+
+  def _extract_user_info(self, user: ByrUser, info: dict[str, bs4.Tag]):
+    """从 `userdetails.php` 的最大的那个表格提取用户信息。"""
+    if _LEVEL in info:
+      level_img = info[_LEVEL].select_one("img")
+      if level_img is not None:
+        user.level = level_img.attrs.get("title", "")
+
+    if _MANA in info:
+      user.mana = float(info[_MANA].get_text(strip=True))
+
+    if _INVITATIONS in info:
+      invitations = info[_INVITATIONS].get_text(strip=True)
+      if "没有邀请资格" not in invitations:
+        user.invitations = int(invitations)
+
+    if _TRANSFER in info:
+      transferred = info[_TRANSFER]
+      for cell in transferred.select("td"):
+        text = cell.get_text(strip=True)
+        if ":" not in text:
+          continue
+        field, value = [s.strip() for s in text.split(":", 1)]
+        if field == "分享率":
+          user.ratio = float(value)
+        elif field == "上传量":
+          user.uploaded = utils.convert_byr_size(value)
+        elif field == "下载量":
+          user.downloaded = utils.convert_byr_size(value)
+
+  def _extract_info_bar(self, user: ByrUser, page: bs4.Tag):
+    """从页面的用户信息栏提取一些信息（就不重复提取 `_extract_user_info` 能提取的了）。"""
+    ranking_tag = next(
+      tag for tag in page.select("#info_block font.color_bonus") if "上传排行" in tag.text
+    )
+    ranking = str(ranking_tag.next).strip()
+    if ranking.isdigit():
+      user.ranking = int(ranking)
+
+    up_arrow = page.select_one("#info_block img.arrowup[title=当前做种]")
+    seeding = str("0" if up_arrow is None else up_arrow.next).strip()
+    if seeding.isdigit():
+      user.seeding = int(seeding)
+
+    down_arrow = page.select_one("#info_block img.arrowdown[title=当前下载]")
+    downloading = str("0" if down_arrow is None else down_arrow.next).strip()
+    if downloading.isdigit():
+      user.downloading = int(downloading)
+
+    connectability = page.select_one("#info_block font[color=green]")
+    user.connectable = connectability is not None and "是" in connectability.text
