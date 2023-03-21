@@ -4,5 +4,15 @@
   "licenser.projectName": "byre",
   "python.linting.pylintEnabled": true,
   "python.linting.enabled": true,
-  "python.formatting.autopep8Args": ["--indent-size=2"]
+  "python.formatting.autopep8Args": ["--indent-size=2"],
+  "python.testing.unittestEnabled": true,
+  "python.testing.unittestArgs": [
+    "-v",
+    "-t",
+    ".",
+    "-s",
+    "./tests",
+    "-p",
+    "test_*.py"
+  ]
 }
