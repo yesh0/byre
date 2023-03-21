@@ -1,0 +1,8 @@
+{
+  "licenser.author": "yesh",
+  "licenser.license": "AGPLv3",
+  "licenser.projectName": "byre",
+  "python.linting.pylintEnabled": true,
+  "python.linting.enabled": true,
+  "python.formatting.autopep8Args": ["--indent-size=2"]
+}
