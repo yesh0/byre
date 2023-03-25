@@ -116,6 +116,9 @@ class TorrentInfo:
     downloaded: float
     """当前用户下载量（GB）。"""
 
+    ratio: float
+    """当前用户分享率。"""
+
     @staticmethod
     def convert_byr_category(cat: str):
         directories = {

@@ -19,7 +19,6 @@ import tempfile
 import unittest
 
 import byre
-
 # noinspection PyUnresolvedReferences
 import context
 
@@ -81,6 +80,15 @@ class TestByrClient(unittest.TestCase):
         self.assertTrue(any("free" in t.promotions for t in torrents))
         # 大多时候种子都会是比较新的吧？
         self.assertTrue(any(t.live_time < 3 for t in torrents))
+        shutil.rmtree(path)
+
+    def test_uploading_listing(self):
+        path = tempfile.mkdtemp()
+        client = login(path)
+        api = byre.ByrApi(client)
+        torrents = api.list_uploading()
+        if len(torrents) != 0:
+            self.assertTrue(any(t.uploaded + t.downloaded > 0 for t in torrents))
         shutil.rmtree(path)
 
 

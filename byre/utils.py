@@ -43,3 +43,11 @@ def int_or(s: str, default=0):
         return int(s)
     except ValueError:
         return default
+
+
+def float_or(s: str, default=0.):
+    """安全地将字符串解析成 float 值。"""
+    try:
+        return float(s)
+    except ValueError:
+        return default

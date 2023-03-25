@@ -253,6 +253,27 @@ class ByrApi:
         page = self.client.get_soup("torrents.php")
         return self._extract_torrent_table(page.select("table.torrents > form > tr")[1:])
 
+    def list_uploading(self):
+        """从 Ajax API 获取用户正在上传的种子列表。"""
+        # noinspection SpellCheckingInspection
+        page = self.client.get_soup(f"getusertorrentlistajax.php?userid={self.current_user_id()}&type=seeding")
+        # 表格的格式：
+        #   0     1     2      3       4       5       6       7
+        # 类型、题目、大小、做种数、下载数、上传量、下载量、分享率
+        return self._extract_torrent_table(
+            page.select("table > tr")[1:],
+            comment_cell=None,
+            live_time_cell=None,
+            size_cell=2,
+            seeder_cell=3,
+            leecher_cell=4,
+            finished_cell=None,
+            uploader_cell=None,
+            uploaded_cell=5,
+            downloaded_cell=6,
+            ratio_cell=7,
+        )
+
     @staticmethod
     def _extract_url_id(href: str):
         return int(parse_qs(urlparse(href).query)["id"][0])
@@ -311,7 +332,11 @@ class ByrApi:
         user.connectable = connectable is not None and "是" in connectable.text
 
     @staticmethod
-    def _extract_torrent_table(rows: bs4.ResultSet[bs4.Tag]):
+    def _extract_torrent_table(rows: bs4.ResultSet[bs4.Tag], comment_cell: typing.Optional[int] = 2,
+                               live_time_cell: typing.Optional[int] = 3, size_cell=4,
+                               seeder_cell=5, leecher_cell=6, finished_cell: typing.Optional[int] = 7,
+                               uploader_cell: typing.Optional[int] = 8, uploaded_cell: typing.Optional[int] = None,
+                               downloaded_cell: typing.Optional[int] = None, ratio_cell: typing.Optional[int] = None):
         """从 torrents.php 页面的种子表格中提取信息。"""
         torrents = []
         for row in rows:
@@ -321,25 +346,34 @@ class ByrApi:
             # 类型、题目、评论数、存活时间、大小、做种数、下载数、完成数、发布者
 
             cat = cells[0].select_one("img").attrs["title"]
-            comments = utils.int_or(cells[2].get_text(strip=True), 0)
-            uploaded_at = datetime.datetime.fromisoformat(cells[3].select_one("span").attrs["title"])
-            size = utils.convert_byr_size(cells[4].get_text(strip=True))
-            seeders = utils.int_or(cells[5].get_text(strip=True))
-            leechers = utils.int_or(cells[6].get_text(strip=True))
-            finished = utils.int_or(cells[7].get_text(strip=True))
-            user_cell = cells[8].select_one("a[href^=userdetails]")
+            comments = utils.int_or(cells[comment_cell].get_text(strip=True), 0) if comment_cell is not None else 0
+            uploaded_at = (
+                datetime.datetime.fromisoformat(cells[live_time_cell].select_one("span").attrs["title"])
+                if live_time_cell is not None else datetime.datetime.now()
+            )
+            size = utils.convert_byr_size(cells[size_cell].get_text(strip=True))
+            seeders = utils.int_or(cells[seeder_cell].get_text(strip=True))
+            leechers = utils.int_or(cells[leecher_cell].get_text(strip=True))
+            finished = utils.int_or(cells[finished_cell].get_text(strip=True)) if finished_cell is not None else 0
+            uploaded = utils.convert_byr_size(
+                cells[uploaded_cell].get_text(strip=True)) if uploaded_cell is not None else 0
+            downloaded = utils.convert_byr_size(
+                cells[downloaded_cell].get_text(strip=True)) if downloaded_cell is not None else 0
+            ratio = utils.float_or(cells[ratio_cell].get_text(strip=True)) if ratio_cell is not None else 0.
             user = ByrUser()
-            if user_cell is not None:
-                user.user_id, user.username = (
-                    ByrApi._extract_url_id(user_cell.attrs["href"]),
-                    user_cell.get_text(strip=True),
-                )
-            else:
-                user.username = "匿名"
+            if uploader_cell is not None:
+                user_cell = cells[uploader_cell].select_one("a[href^=userdetails]")
+                if user_cell is not None:
+                    user.user_id, user.username = (
+                        ByrApi._extract_url_id(user_cell.attrs["href"]),
+                        user_cell.get_text(strip=True),
+                    )
+                else:
+                    user.username = "匿名"
 
-            # 标题需要一点特殊处理
+            # 标题需要一点特殊处理。
             title_cell = cells[1]
-            torrent_link = title_cell.select_one("table.torrentname td.embedded a[href^=details]")
+            torrent_link = title_cell.select_one("a[href^=details]")
             title = torrent_link.attrs["title"]
             byr_id = ByrApi._extract_url_id(torrent_link.attrs["href"])
             subtitle_newline = torrent_link.find_parent("td").find("br")
@@ -364,8 +398,9 @@ class ByrApi:
                 finished=finished,
                 comments=comments,
                 uploader=user,
-                uploaded=0.,
-                downloaded=0.,
+                uploaded=uploaded,
+                downloaded=downloaded,
+                ratio=ratio,
             ))
         return torrents
 
