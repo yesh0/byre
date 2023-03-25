@@ -1,4 +1,0 @@
-[MAIN]
-
-ignore-patterns=**/tests/*.py
-indent-string='  '
