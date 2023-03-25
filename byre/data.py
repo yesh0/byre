@@ -15,6 +15,7 @@
 
 """北邮人 PT 站的用户、种子等信息。"""
 
+import enum
 from dataclasses import dataclass
 
 
@@ -67,6 +68,39 @@ PROMOTION_TWO_UP = "two_up"
 PROMOTION_FREE = "free"
 
 
+class TorrentPromotion(enum.Enum):
+    """
+    种子促销种类。
+
+    前面是人类看得懂的描述，后面的数字是北邮人上对应的数字 spstate，用于查询。
+    """
+    ANY = (), 0
+    NONE = (), 1
+    FREE = (PROMOTION_FREE,), 2
+    X2 = (PROMOTION_TWO_UP,), 3
+    FREE_X2 = (PROMOTION_FREE, PROMOTION_TWO_UP), 4
+    HALF_OFF = (PROMOTION_HALF_DOWN,), 5
+    HALF_OFF_X2 = (PROMOTION_HALF_DOWN, PROMOTION_TWO_UP), 6
+    THIRTY_PERCENT = (PROMOTION_THIRTY_DOWN,), 7
+
+    def __contains__(self, item):
+        if self == TorrentPromotion.ANY:
+            return True
+        return item in self.value[0]
+
+
+class TorrentTag(enum.Enum):
+    """
+    站点管理员给种子打的标签，如热门、经典、推荐等等。
+
+    数字是北邮人上对应的数字 pktype。
+    """
+    ANY = 0
+    TRENDING = 1
+    CLASSIC = 2
+    RECOMMENDED = 3
+
+
 @dataclass
 class TorrentInfo:
     """从北邮人上抓取来的种子信息。"""
@@ -86,8 +120,11 @@ class TorrentInfo:
     category: str
     """英文分类（变成了“Movies”、“Software”这种）。"""
 
-    promotions: list[str]
+    promotions: TorrentPromotion
     """打折标签（免费、2x上传这种，提取成为“free”“two_up”等）。"""
+
+    tag: TorrentTag
+    """站点推荐（热门、经典、推荐这种）。"""
 
     file_size: float
     """种子总大小（GB 或是 1000 ** 3 字节）。"""

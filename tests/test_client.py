@@ -77,7 +77,7 @@ class TestByrClient(unittest.TestCase):
         for torrent in torrents:
             self.assertNotEqual("Others", torrent.category)
         # 大多时候都会有免费种子的吧？
-        self.assertTrue(any("free" in t.promotions for t in torrents))
+        self.assertTrue(any(byre.PROMOTION_FREE in t.promotions for t in torrents))
         # 大多时候种子都会是比较新的吧？
         self.assertTrue(any(t.live_time < 3 for t in torrents))
         shutil.rmtree(path)
@@ -86,7 +86,7 @@ class TestByrClient(unittest.TestCase):
         path = tempfile.mkdtemp()
         client = login(path)
         api = byre.ByrApi(client)
-        torrents = api.list_uploading()
+        torrents = api.list_user_torrents()
         if len(torrents) != 0:
             self.assertTrue(any(t.uploaded + t.downloaded > 0 for t in torrents))
         shutil.rmtree(path)

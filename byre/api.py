@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """提供北邮人 PT 站的部分读取 API 接口。"""
+
 import datetime
 import logging
 import os
@@ -26,7 +27,7 @@ import bs4
 import requests
 
 from byre import utils
-from byre.data import ByrUser, TorrentInfo, PROMOTION_HALF_DOWN, PROMOTION_FREE, PROMOTION_TWO_UP, PROMOTION_THIRTY_DOWN
+from byre.data import ByrUser, TorrentInfo, TorrentPromotion, TorrentTag
 
 _logger = logging.getLogger("byre.api")
 _debug, _info, _warning, _fatal = _logger.debug, _logger.info, _logger.warning, _logger.fatal
@@ -248,15 +249,15 @@ class ByrApi:
             self._extract_info_bar(user, page)
         return user
 
-    def list_torrents(self):
+    def list_torrents(self, page=0, promotion=TorrentPromotion.ANY, tag=TorrentTag.ANY):
         """从 torrents.php 页面提取信息。"""
-        page = self.client.get_soup("torrents.php")
+        page = self.client.get_soup(f"torrents.php?page={page}&spstate={promotion.value[1]}&pktype={tag.value}")
         return self._extract_torrent_table(page.select("table.torrents > form > tr")[1:])
 
-    def list_uploading(self):
+    def list_user_torrents(self, kind="seeding"):
         """从 Ajax API 获取用户正在上传的种子列表。"""
         # noinspection SpellCheckingInspection
-        page = self.client.get_soup(f"getusertorrentlistajax.php?userid={self.current_user_id()}&type=seeding")
+        page = self.client.get_soup(f"getusertorrentlistajax.php?userid={self.current_user_id()}&type={kind}")
         # 表格的格式：
         #   0     1     2      3       4       5       6       7
         # 类型、题目、大小、做种数、下载数、上传量、下载量、分享率
@@ -383,6 +384,7 @@ class ByrApi:
             else:
                 subtitle = ""
             promotions = ByrApi._extract_promotion_info(title_cell)
+            tag = ByrApi._extract_tag(title_cell)
 
             torrents.append(TorrentInfo(
                 title=title,
@@ -391,6 +393,7 @@ class ByrApi:
                 cat=cat,
                 category=TorrentInfo.convert_byr_category(cat),
                 promotions=promotions,
+                tag=tag,
                 file_size=size,
                 live_time=(datetime.datetime.now() - uploaded_at).total_seconds() / (60 * 60 * 24),
                 seeders=seeders,
@@ -405,7 +408,7 @@ class ByrApi:
         return torrents
 
     @staticmethod
-    def _extract_promotion_info(title_cell: bs4.Tag) -> list[str]:
+    def _extract_promotion_info(title_cell: bs4.Tag) -> TorrentPromotion:
         """
         提取表格中的促销/折扣信息。
 
@@ -414,29 +417,42 @@ class ByrApi:
         # noinspection SpellCheckingInspection
         selectors = {
             # 促销种子：高亮显示
-            "tr.free_bg": [PROMOTION_FREE],
-            "tr.twoup_bg": [PROMOTION_TWO_UP],
-            "tr.twoupfree_bg": [PROMOTION_FREE, PROMOTION_TWO_UP],
-            "tr.halfdown_bg": [PROMOTION_HALF_DOWN],
-            "tr.twouphalfdown_bg": [PROMOTION_HALF_DOWN, PROMOTION_TWO_UP],
-            "tr.thirtypercentdown_bg": [PROMOTION_THIRTY_DOWN],
+            "tr.free_bg": TorrentPromotion.FREE,
+            "tr.twoup_bg": TorrentPromotion.X2,
+            "tr.twoupfree_bg": TorrentPromotion.FREE_X2,
+            "tr.halfdown_bg": TorrentPromotion.HALF_OFF,
+            "tr.twouphalfdown_bg": TorrentPromotion.HALF_OFF_X2,
+            "tr.thirtypercentdown_bg": TorrentPromotion.THIRTY_PERCENT,
             # 促销种子：添加标记，如'2X免费'
-            "font.free": [PROMOTION_FREE],
-            "font.twoup": [PROMOTION_TWO_UP],
-            "font.twoupfree": [PROMOTION_FREE, PROMOTION_TWO_UP],
-            "font.halfdown": [PROMOTION_HALF_DOWN],
-            "font.twouphalfdown": [PROMOTION_HALF_DOWN, PROMOTION_TWO_UP],
-            "font.thirtypercent": [PROMOTION_THIRTY_DOWN],
+            "font.free": TorrentPromotion.FREE,
+            "font.twoup": TorrentPromotion.X2,
+            "font.twoupfree": TorrentPromotion.FREE_X2,
+            "font.halfdown": TorrentPromotion.HALF_OFF,
+            "font.twouphalfdown": TorrentPromotion.HALF_OFF_X2,
+            "font.thirtypercent": TorrentPromotion.THIRTY_PERCENT,
             # 促销种子：添加图标
-            "img.pro_free": [PROMOTION_FREE],
-            "img.pro_2up": [PROMOTION_TWO_UP],
-            "img.pro_free2up": [PROMOTION_FREE, PROMOTION_TWO_UP],
-            "img.pro_50pctdown": [PROMOTION_HALF_DOWN],
-            "img.pro_50pctdown2up": [PROMOTION_HALF_DOWN, PROMOTION_TWO_UP],
-            "img.pro_30pctdown": [PROMOTION_THIRTY_DOWN],
+            "img.pro_free": TorrentPromotion.FREE,
+            "img.pro_2up": TorrentPromotion.X2,
+            "img.pro_free2up": TorrentPromotion.FREE_X2,
+            "img.pro_50pctdown": TorrentPromotion.HALF_OFF,
+            "img.pro_50pctdown2up": TorrentPromotion.HALF_OFF_X2,
+            "img.pro_30pctdown": TorrentPromotion.THIRTY_PERCENT,
             # 促销种子：无标记 - 真的没办法
         }
         for selector, promotions in selectors.items():
             if title_cell.select_one(selector) is not None:
                 return promotions
-        return []
+        return TorrentPromotion.NONE
+
+    @staticmethod
+    def _extract_tag(title_cell: bs4.Tag) -> TorrentTag:
+        """提取站点对种子打的标签。"""
+        selectors = {
+            "font.hot": TorrentTag.TRENDING,
+            "font.classic": TorrentTag.CLASSIC,
+            "font.recommended": TorrentTag.RECOMMENDED,
+        }
+        for selector, tag in selectors.items():
+            if title_cell.select_one(selector) is not None:
+                return tag
+        return TorrentTag.ANY
