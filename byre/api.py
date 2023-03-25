@@ -16,6 +16,7 @@
 """提供北邮人 PT 站的部分读取 API 接口。"""
 
 import datetime
+import enum
 import logging
 import os
 import pickle
@@ -189,6 +190,19 @@ class ByrClient:
             pickle.dump(cookies, file)
 
 
+class ByrSortableField(enum.Enum):
+    ID = 0
+    TITLE = 1
+    FILE_COUNT = 2
+    COMMENT_COUNT = 3
+    LIVE_TIME = 4
+    SIZE = 5
+    FINISHED_COUNT = 6
+    SEEDER_COUNT = 7
+    LEECHER_COUNT = 8
+    UPLOADER = 9
+
+
 _LEVEL = "等级"
 _MANA = "魔力值"
 _INVITATIONS = "邀请"
@@ -239,7 +253,7 @@ class ByrApi:
         info_entries = page.select("td.embedded>table>tr")
         info: dict[str, bs4.Tag] = {}
         for entry in info_entries:
-            cells: bs4.ResultSet[bs4.Tag] = entry.find_all("td", recursive=False)
+            cells: bs4.element.ResultSet[bs4.Tag] = entry.find_all("td", recursive=False)
             if len(cells) != 2:
                 continue
             info[cells[0].get_text(strip=True)] = cells[1]
@@ -249,9 +263,14 @@ class ByrApi:
             self._extract_info_bar(user, page)
         return user
 
-    def list_torrents(self, page=0, promotion=TorrentPromotion.ANY, tag=TorrentTag.ANY):
+    def list_torrents(self, page=0, promotion=TorrentPromotion.ANY, tag=TorrentTag.ANY, sorted_by=ByrSortableField.ID,
+                      desc=True):
         """从 torrents.php 页面提取信息。"""
-        page = self.client.get_soup(f"torrents.php?page={page}&spstate={promotion.value[1]}&pktype={tag.value}")
+        order = "desc" if desc else "asc"
+        page = self.client.get_soup(
+            f"torrents.php?page={page}&spstate={promotion.value[1]}"
+            f"&pktype={tag.value}&sort={sorted_by.value}&type={order}"
+        )
         return self._extract_torrent_table(page.select("table.torrents > form > tr")[1:])
 
     def list_user_torrents(self, kind="seeding"):
@@ -274,6 +293,10 @@ class ByrApi:
             downloaded_cell=6,
             ratio_cell=7,
         )
+
+    def download_torrent(self, seed_id: int):
+        res = self.client.get(f"download.php?id={seed_id}")
+        return res.content
 
     @staticmethod
     def _extract_url_id(href: str):
@@ -333,7 +356,7 @@ class ByrApi:
         user.connectable = connectable is not None and "是" in connectable.text
 
     @staticmethod
-    def _extract_torrent_table(rows: bs4.ResultSet[bs4.Tag], comment_cell: typing.Optional[int] = 2,
+    def _extract_torrent_table(rows: bs4.element.ResultSet[bs4.Tag], comment_cell: typing.Optional[int] = 2,
                                live_time_cell: typing.Optional[int] = 3, size_cell=4,
                                seeder_cell=5, leecher_cell=6, finished_cell: typing.Optional[int] = 7,
                                uploader_cell: typing.Optional[int] = 8, uploaded_cell: typing.Optional[int] = None,
@@ -341,7 +364,7 @@ class ByrApi:
         """从 torrents.php 页面的种子表格中提取信息。"""
         torrents = []
         for row in rows:
-            cells: bs4.ResultSet[bs4.Tag] = row.find_all("td", recursive=False)
+            cells: bs4.element.ResultSet[bs4.Tag] = row.find_all("td", recursive=False)
             # cells 里依次是：
             #   0     1      2        3       4      5       6      7        8
             # 类型、题目、评论数、存活时间、大小、做种数、下载数、完成数、发布者
@@ -380,7 +403,7 @@ class ByrApi:
             subtitle_newline = torrent_link.find_parent("td").find("br")
             if subtitle_newline is not None:
                 subtitle_node = subtitle_newline.next_sibling
-                subtitle = subtitle_node.get_text() if isinstance(subtitle_node, bs4.NavigableString) else ""
+                subtitle = subtitle_node.get_text() if isinstance(subtitle_node, bs4.element.NavigableString) else ""
             else:
                 subtitle = ""
             promotions = ByrApi._extract_promotion_info(title_cell)
