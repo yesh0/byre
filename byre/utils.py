@@ -23,9 +23,9 @@ _warning = _logger.warning
 
 def convert_byr_size(size: str) -> float:
     """
-      将文字形式的 xx MB 转换为以 GB 为单位的浮点数。
+    将文字形式的 xx MB 转换为以 GB 为单位的浮点数。
 
-      北邮人是1024派的, Linux 是 1000 派的, 所以 GB 会差 1-(1000/1024)**3=6.9%。
+    北邮人是1024派的, Linux 是 1000 派的, 所以 GB 会差 1-(1000/1024)**3=6.9%。
     """
 
     size = size.strip().upper()
@@ -35,3 +35,11 @@ def convert_byr_size(size: str) -> float:
     except ValueError:
         _warning("无法识别的数据量单位：%s", size)
         return 0.
+
+
+def int_or(s: str, default=0):
+    """安全地将字符串解析成 int 值。"""
+    try:
+        return int(s)
+    except ValueError:
+        return default

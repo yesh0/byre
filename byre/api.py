@@ -14,7 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """提供北邮人 PT 站的部分读取 API 接口。"""
-
+import datetime
 import logging
 import os
 import pickle
@@ -26,7 +26,7 @@ import bs4
 import requests
 
 from byre import utils
-from byre.data import ByrUser
+from byre.data import ByrUser, TorrentInfo, PROMOTION_HALF_DOWN, PROMOTION_FREE, PROMOTION_TWO_UP, PROMOTION_THIRTY_DOWN
 
 _logger = logging.getLogger("byre.api")
 _debug, _info, _warning, _fatal = _logger.debug, _logger.info, _logger.warning, _logger.fatal
@@ -217,9 +217,7 @@ class ByrApi:
             return self._user_id
         page = self.client.get_soup("")
         # noinspection PyTypeChecker
-        user_id = int(
-            parse_qs(urlparse(page.select("a[class=User_Name]")[0].attrs["href"]).query)["id"][0]
-        )
+        user_id = self._extract_url_id(page.select("a[class=User_Name]")[0].attrs["href"])
         _debug("提取的用户 ID 为：%d", user_id)
         self._user_id = user_id
         return user_id
@@ -249,6 +247,15 @@ class ByrApi:
         if user_id == self.current_user_id():
             self._extract_info_bar(user, page)
         return user
+
+    def list_torrents(self):
+        """从 torrents.php 页面提取信息。"""
+        page = self.client.get_soup("torrents.php")
+        return self._extract_torrent_table(page.select("table.torrents > form > tr")[1:])
+
+    @staticmethod
+    def _extract_url_id(href: str):
+        return int(parse_qs(urlparse(href).query)["id"][0])
 
     @staticmethod
     def _extract_user_info(user: ByrUser, info: dict[str, bs4.Tag]):
@@ -302,3 +309,99 @@ class ByrApi:
 
         connectable = page.select_one("#info_block font[color=green]")
         user.connectable = connectable is not None and "是" in connectable.text
+
+    @staticmethod
+    def _extract_torrent_table(rows: bs4.ResultSet[bs4.Tag]):
+        """从 torrents.php 页面的种子表格中提取信息。"""
+        torrents = []
+        for row in rows:
+            cells: bs4.ResultSet[bs4.Tag] = row.find_all("td", recursive=False)
+            # cells 里依次是：
+            #   0     1      2        3       4      5       6      7        8
+            # 类型、题目、评论数、存活时间、大小、做种数、下载数、完成数、发布者
+
+            cat = cells[0].select_one("img").attrs["title"]
+            comments = utils.int_or(cells[2].get_text(strip=True), 0)
+            uploaded_at = datetime.datetime.fromisoformat(cells[3].select_one("span").attrs["title"])
+            size = utils.convert_byr_size(cells[4].get_text(strip=True))
+            seeders = utils.int_or(cells[5].get_text(strip=True))
+            leechers = utils.int_or(cells[6].get_text(strip=True))
+            finished = utils.int_or(cells[7].get_text(strip=True))
+            user_cell = cells[8].select_one("a[href^=userdetails]")
+            user = ByrUser()
+            if user_cell is not None:
+                user.user_id, user.username = (
+                    ByrApi._extract_url_id(user_cell.attrs["href"]),
+                    user_cell.get_text(strip=True),
+                )
+            else:
+                user.username = "匿名"
+
+            # 标题需要一点特殊处理
+            title_cell = cells[1]
+            torrent_link = title_cell.select_one("table.torrentname td.embedded a[href^=details]")
+            title = torrent_link.attrs["title"]
+            byr_id = ByrApi._extract_url_id(torrent_link.attrs["href"])
+            subtitle_newline = torrent_link.find_parent("td").find("br")
+            if subtitle_newline is not None:
+                subtitle_node = subtitle_newline.next_sibling
+                subtitle = subtitle_node.get_text() if isinstance(subtitle_node, bs4.NavigableString) else ""
+            else:
+                subtitle = ""
+            promotions = ByrApi._extract_promotion_info(title_cell)
+
+            torrents.append(TorrentInfo(
+                title=title,
+                sub_title=subtitle,
+                seed_id=byr_id,
+                cat=cat,
+                category=TorrentInfo.convert_byr_category(cat),
+                promotions=promotions,
+                file_size=size,
+                live_time=(datetime.datetime.now() - uploaded_at).total_seconds() / (60 * 60 * 24),
+                seeders=seeders,
+                leechers=leechers,
+                finished=finished,
+                comments=comments,
+                uploader=user,
+                uploaded=0.,
+                downloaded=0.,
+            ))
+        return torrents
+
+    @staticmethod
+    def _extract_promotion_info(title_cell: bs4.Tag) -> list[str]:
+        """
+        提取表格中的促销/折扣信息。
+
+        因为有很多种折扣信息的格式，总之暂时直接枚举。
+        """
+        # noinspection SpellCheckingInspection
+        selectors = {
+            # 促销种子：高亮显示
+            "tr.free_bg": [PROMOTION_FREE],
+            "tr.twoup_bg": [PROMOTION_TWO_UP],
+            "tr.twoupfree_bg": [PROMOTION_FREE, PROMOTION_TWO_UP],
+            "tr.halfdown_bg": [PROMOTION_HALF_DOWN],
+            "tr.twouphalfdown_bg": [PROMOTION_HALF_DOWN, PROMOTION_TWO_UP],
+            "tr.thirtypercentdown_bg": [PROMOTION_THIRTY_DOWN],
+            # 促销种子：添加标记，如'2X免费'
+            "font.free": [PROMOTION_FREE],
+            "font.twoup": [PROMOTION_TWO_UP],
+            "font.twoupfree": [PROMOTION_FREE, PROMOTION_TWO_UP],
+            "font.halfdown": [PROMOTION_HALF_DOWN],
+            "font.twouphalfdown": [PROMOTION_HALF_DOWN, PROMOTION_TWO_UP],
+            "font.thirtypercent": [PROMOTION_THIRTY_DOWN],
+            # 促销种子：添加图标
+            "img.pro_free": [PROMOTION_FREE],
+            "img.pro_2up": [PROMOTION_TWO_UP],
+            "img.pro_free2up": [PROMOTION_FREE, PROMOTION_TWO_UP],
+            "img.pro_50pctdown": [PROMOTION_HALF_DOWN],
+            "img.pro_50pctdown2up": [PROMOTION_HALF_DOWN, PROMOTION_TWO_UP],
+            "img.pro_30pctdown": [PROMOTION_THIRTY_DOWN],
+            # 促销种子：无标记 - 真的没办法
+        }
+        for selector, promotions in selectors.items():
+            if title_cell.select_one(selector) is not None:
+                return promotions
+        return []

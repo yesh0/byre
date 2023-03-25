@@ -18,6 +18,7 @@
 from dataclasses import dataclass
 
 
+@dataclass
 class ByrUser:
     """一位北邮人用户。"""
 
@@ -57,6 +58,15 @@ class ByrUser:
     """用户客户端可连接状态。"""
 
 
+PROMOTION_THIRTY_DOWN = "thirty_down"
+
+PROMOTION_HALF_DOWN = "half_down"
+
+PROMOTION_TWO_UP = "two_up"
+
+PROMOTION_FREE = "free"
+
+
 @dataclass
 class TorrentInfo:
     """从北邮人上抓取来的种子信息。"""
@@ -71,10 +81,13 @@ class TorrentInfo:
     """种子 id，最好不要与 transmission 的种子 id 混淆。"""
 
     cat: str
-    """分类（电影、软件这种）。"""
+    """分类（“电影”、“软件”这种）。"""
 
-    tag: str
-    """打折标签（免费、2x上传这种）。"""
+    category: str
+    """英文分类（变成了“Movies”、“Software”这种）。"""
+
+    promotions: list[str]
+    """打折标签（免费、2x上传这种，提取成为“free”“two_up”等）。"""
 
     file_size: float
     """种子总大小（GB 或是 1000 ** 3 字节）。"""
@@ -91,8 +104,30 @@ class TorrentInfo:
     finished: int
     """已完成的下载数。"""
 
+    comments: int
+    """评论数。"""
+
+    uploader: ByrUser
+    """上传者。"""
+
     uploaded: float
     """当前用户上传量。"""
 
     downloaded: float
     """当前用户下载量（GB）。"""
+
+    @staticmethod
+    def convert_byr_category(cat: str):
+        directories = {
+            "电影": "Movies",
+            "剧集": "TVSeries",
+            "动漫": "Anime",
+            "音乐": "Music",
+            "综艺": "VarietyShows",
+            "游戏": "Games",
+            "软件": "Software",
+            "资料": "Documents",
+            "体育": "Sports",
+            "纪录": "Documentaries",
+        }
+        return directories.get(cat, "Others")

@@ -24,11 +24,15 @@ import byre
 import context
 
 
+def login(path):
+    return byre.ByrClient(os.environ.get("USERNAME", ""), os.environ.get("PASSWORD", ""),
+                          cookie_file=os.path.join(path, "dir", "byr.cookies"))
+
+
 class TestByrClient(unittest.TestCase):
     def test_login(self):
         path = tempfile.mkdtemp()
-        client = byre.ByrClient(os.environ.get("USERNAME", ""), os.environ.get("PASSWORD", ""),
-                                cookie_file=os.path.join(path, "dir", "byr.cookies"))
+        client = login(path)
         self.assertFalse(client.is_logged_in())
         client.login(cache=False)
         self.assertTrue(client.is_logged_in())
@@ -63,6 +67,20 @@ class TestByrClient(unittest.TestCase):
         self.assertEqual(311638, moderator.user_id)
 
         api.close()
+        shutil.rmtree(path)
+
+    def test_torrent_table_parsing(self):
+        path = tempfile.mkdtemp()
+        client = login(path)
+        api = byre.ByrApi(client)
+        torrents = api.list_torrents()
+        self.assertNotEqual(0, len(torrents))
+        for torrent in torrents:
+            self.assertNotEqual("Others", torrent.category)
+        # 大多时候都会有免费种子的吧？
+        self.assertTrue(any("free" in t.promotions for t in torrents))
+        # 大多时候种子都会是比较新的吧？
+        self.assertTrue(any(t.live_time < 3 for t in torrents))
         shutil.rmtree(path)
 
 
