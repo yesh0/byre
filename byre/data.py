@@ -133,6 +133,9 @@ class TorrentInfo:
     category: str
     """英文分类（变成了“Movies”、“Software”这种）。"""
 
+    second_category: str
+    """二级分类（“北美”“动画”这种，只有中文了，希望路径不会出问题）。"""
+
     promotions: TorrentPromotion
     """打折标签（免费、2x上传这种，提取成为“free”“two_up”等）。"""
 

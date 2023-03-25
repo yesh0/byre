@@ -298,6 +298,12 @@ class ByrApi:
         res = self.client.get(f"download.php?id={seed_id}")
         return res.content
 
+    def torrent_second_category(self, seed_id: int):
+        """获取种子的二级类型，用于细分种子，毕竟谁知道最后会下多少种子呢。"""
+        page = self.client.get_soup(f"details.php?id={seed_id}&hit=1")
+        sec_type = page.select_one("span#sec_type")
+        return sec_type.text if sec_type is not None else "其它"
+
     @staticmethod
     def _extract_url_id(href: str):
         return int(parse_qs(urlparse(href).query)["id"][0])
@@ -355,13 +361,17 @@ class ByrApi:
         connectable = page.select_one("#info_block font[color=green]")
         user.connectable = connectable is not None and "是" in connectable.text
 
-    @staticmethod
-    def _extract_torrent_table(rows: bs4.element.ResultSet[bs4.Tag], comment_cell: typing.Optional[int] = 2,
+    def _extract_torrent_table(self, rows: bs4.element.ResultSet[bs4.Tag], comment_cell: typing.Optional[int] = 2,
                                live_time_cell: typing.Optional[int] = 3, size_cell=4,
                                seeder_cell=5, leecher_cell=6, finished_cell: typing.Optional[int] = 7,
                                uploader_cell: typing.Optional[int] = 8, uploaded_cell: typing.Optional[int] = None,
-                               downloaded_cell: typing.Optional[int] = None, ratio_cell: typing.Optional[int] = None):
-        """从 torrents.php 页面的种子表格中提取信息。"""
+                               downloaded_cell: typing.Optional[int] = None, ratio_cell: typing.Optional[int] = None,
+                               sec_type=False):
+        """
+        从 torrents.php 页面的种子表格中提取信息。
+
+        提取二级分类需要每个种子抓取一个页面，对服务器不太厚道。默认关闭。
+        """
         torrents = []
         for row in rows:
             cells: bs4.element.ResultSet[bs4.Tag] = row.find_all("td", recursive=False)
@@ -409,12 +419,19 @@ class ByrApi:
             promotions = ByrApi._extract_promotion_info(title_cell)
             tag = ByrApi._extract_tag(title_cell)
 
+            if sec_type:
+                time.sleep(0.5)
+                second = self.torrent_second_category(byr_id)
+            else:
+                second = ""
+
             torrents.append(TorrentInfo(
                 title=title,
                 sub_title=subtitle,
                 seed_id=byr_id,
                 cat=cat,
                 category=TorrentInfo.convert_byr_category(cat),
+                second_category=second,
                 promotions=promotions,
                 tag=tag,
                 file_size=size,

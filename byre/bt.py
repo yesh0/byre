@@ -70,7 +70,7 @@ class BtClient:
                 category,
                 torrent_dir=torrent_dir,
                 download_dir=download_dir,
-                enable_download_path=True,
+                enable_download_path=False,
             )
 
     def remove_categories(self, categories: typing.Iterable[str]):
@@ -104,6 +104,7 @@ class BtClient:
             is_paused=paused,
             rename=title,
             tags=["byr"],
+            download_path=self._get_download_dir(info),
         )
 
     def remove_torrent(self, torrent: LocalTorrent):
@@ -123,3 +124,8 @@ class BtClient:
                     continue
             _warning("种子命名不符合要求：%s", name)
         return torrents
+
+    def _get_download_dir(self, torrent: TorrentInfo):
+        """下载目录，由种子分类及二级分类决定。"""
+        return (os.path.join(self._dir, torrent.category, torrent.second_category)
+                if torrent.second_category else os.path.join(self._dir, torrent.category))
