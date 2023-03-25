@@ -138,42 +138,42 @@ class ByrClient:
     def _get_url(path: str) -> str:
         return "https://byr.pt/" + path
 
-    def _authorize_session(self, retries=5):
+    def _authorize_session(self):
         """进行登录请求，更新 `self._session`。"""
-        # 加载时间挺长的，懒加载验证码这部分。
-        import ddddocr  # pylint: disable=import-outside-toplevel
+        # 懒加载验证码（模型以及大块的依赖）。
+        import io
+        from PIL import Image
+        import byre.decaptcha as decaptcha
         if self._decaptcha is None:
             # 重用对象，避免重复创建。
-            self._decaptcha = ddddocr.DdddOcr(show_ad=False)
+            self._decaptcha = decaptcha.DeCaptcha()
+            self._decaptcha.load_model(decaptcha.model_file())
 
         self._session.cookies.clear()
 
-        for i in range(retries):
-            login_page = self.get_soup("login.php")
-            img_url = self._get_url(
-                login_page.select("#nav_block > form > table > tr:nth-of-type(3) img")[0].attrs["src"]
-            )
-            captcha_text = self._decaptcha.classification(self._session.get(img_url).content)
-            _debug("验证码解析结果：%s", captcha_text)
+        login_page = self.get_soup("login.php")
+        img_url = self._get_url(
+            login_page.select("#nav_block > form > table > tr:nth-of-type(3) img")[0].attrs["src"]
+        )
+        captcha_text = self._decaptcha.decode(Image.open(io.BytesIO(self._session.get(img_url).content)))
+        _debug("验证码解析结果：%s", captcha_text)
 
-            _debug("正在发起登录请求")
-            login_res = self._session.post(
-                self._get_url("takelogin.php"),
-                data={
-                    "username": self.username,
-                    "password": self.password,
-                    "imagestring": captcha_text,
-                    "imagehash": img_url.split("=")[-1],
-                },
-                allow_redirects=False,
-            )
+        _debug("正在发起登录请求")
+        login_res = self._session.post(
+            self._get_url("takelogin.php"),
+            data={
+                "username": self.username,
+                "password": self.password,
+                "imagestring": captcha_text,
+                "imagehash": img_url.split("=")[-1],
+            },
+            allow_redirects=False,
+        )
 
-            if login_res.status_code == 302:
-                return
-            if i != retries - 1:
-                _info("第 %d 次登录请求失败，正在进行重试", i + 1)
-                time.sleep(self._retry_delay)
-        raise ConnectionError(f"所有 {retries} 次登录请求均失败")
+        if login_res.status_code == 302:
+            return
+
+        raise ConnectionError("登录请求失败，因为北邮人有封 IP 机制，请谨慎使用")
 
     def _cache_session(self):
         """保存 `self._session.cookies`。"""
