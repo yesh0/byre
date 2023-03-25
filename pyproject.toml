@@ -1,0 +1,22 @@
+[tool.pdm]
+
+[project]
+name = "byre"
+version = "0.1.0"
+description = "北邮人命令行操作以及 BT 软件整合实现"
+authors = [
+    {name = "Yesh", email = "yesh@aliyun.com"},
+]
+dependencies = [
+    "beautifulsoup4>=4.12.0",
+    "requests>=2.28.2",
+    "ddddocr>=1.0.6",
+    "python-dotenv>=1.0.0",
+]
+requires-python = ">=3.8,<3.11"
+readme = "README.md"
+license = {text = "AGPLv3"}
+
+[build-system]
+requires = ["pdm-pep517>=1.0"]
+build-backend = "pdm.pep517.api"
