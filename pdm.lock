@@ -53,6 +53,17 @@ requires_python = ">=3.8"
 summary = "Read key-value pairs from a .env file and set them as environment variables"
 
 [[package]]
+name = "qbittorrent-api"
+version = "2023.3.44"
+summary = "Python client for qBittorrent v4.1+ Web API."
+dependencies = [
+    "requests>=2.16.0",
+    "setuptools",
+    "six",
+    "urllib3>=1.24.2",
+]
+
+[[package]]
 name = "requests"
 version = "2.28.2"
 requires_python = ">=3.7, <4"
@@ -86,6 +97,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "setuptools"
+version = "67.6.0"
+requires_python = ">=3.7"
+summary = "Easily download, build, install, upgrade, and uninstall Python packages"
+
+[[package]]
+name = "six"
+version = "1.16.0"
+requires_python = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
+summary = "Python 2 and 3 compatibility utilities"
+
+[[package]]
 name = "soupsieve"
 version = "2.4"
 requires_python = ">=3.7"
@@ -105,7 +128,7 @@ summary = "HTTP library with thread-safe connection pooling, file post, and more
 
 [metadata]
 lock_version = "4.1"
-content_hash = "sha256:586df6b0f96aae61e6a77d7482e89bf8695109df90a454dccbb9c887a042c72e"
+content_hash = "sha256:73334f0269c9f23da5f5142a48ff70336c6de001affb706f0bebbd411701c08e"
 
 [metadata.files]
 "beautifulsoup4 4.12.0" = [
@@ -314,6 +337,10 @@ content_hash = "sha256:586df6b0f96aae61e6a77d7482e89bf8695109df90a454dccbb9c887a
     {url = "https://files.pythonhosted.org/packages/31/06/1ef763af20d0572c032fa22882cfbfb005fba6e7300715a37840858c919e/python-dotenv-1.0.0.tar.gz", hash = "sha256:a8df96034aae6d2d50a4ebe8216326c61c3eb64836776504fcca410e5937a3ba"},
     {url = "https://files.pythonhosted.org/packages/44/2f/62ea1c8b593f4e093cc1a7768f0d46112107e790c3e478532329e434f00b/python_dotenv-1.0.0-py3-none-any.whl", hash = "sha256:f5971a9226b701070a4bf2c38c89e5a3f0d64de8debda981d1db98583009122a"},
 ]
+"qbittorrent-api 2023.3.44" = [
+    {url = "https://files.pythonhosted.org/packages/c0/03/bcba2dde9a3276678b406686fa7fc0a1bd8df923c7d24a893c804cd3efad/qbittorrent_api-2023.3.44-py2.py3-none-any.whl", hash = "sha256:272adee97d92174d4fbb85b0c1c67aad2d651dfcfb04fb5ee4a5b4224547cb4e"},
+    {url = "https://files.pythonhosted.org/packages/d0/a1/0cb44093d259676f0559943a9ca26494ac7d807d7cc2c6c973f08b3c6e27/qbittorrent-api-2023.3.44.tar.gz", hash = "sha256:ea6757fd6b40c2c6c0bb668efbcc2ba94f650b5787481668e3a692dbaa9f4868"},
+]
 "requests 2.28.2" = [
     {url = "https://files.pythonhosted.org/packages/9d/ee/391076f5937f0a8cdf5e53b701ffc91753e87b07d66bae4a09aa671897bf/requests-2.28.2.tar.gz", hash = "sha256:98b1b2782e3c6c4904938b84c0eb932721069dfdb9134313beff7c83c2df24bf"},
     {url = "https://files.pythonhosted.org/packages/d2/f4/274d1dbe96b41cf4e0efb70cbced278ffd61b5c7bb70338b62af94ccb25b/requests-2.28.2-py3-none-any.whl", hash = "sha256:64299f4909223da747622c030b781c0d7811e359c37124b4bd368fb8c6518baa"},
@@ -363,6 +390,14 @@ content_hash = "sha256:586df6b0f96aae61e6a77d7482e89bf8695109df90a454dccbb9c887a
     {url = "https://files.pythonhosted.org/packages/e7/f0/55d81813b1a4cb79ce7dc8290eac083bf38bfb36e1ada94ea13b7b1a5f79/scipy-1.10.1-cp39-cp39-macosx_12_0_arm64.whl", hash = "sha256:79c8e5a6c6ffaf3a2262ef1be1e108a035cf4f05c14df56057b64acc5bebffb6"},
     {url = "https://files.pythonhosted.org/packages/ea/e5/452086ebed676ce4000ceb5eeeb0ee4f8c6f67c7e70fb9323a370ff95c1f/scipy-1.10.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:4b3f429188c66603a1a5c549fb414e4d3bdc2a24792e061ffbd607d3d75fd84e"},
     {url = "https://files.pythonhosted.org/packages/ec/e3/b06ac3738bf365e89710205a471abe7dceec672a51c244b469bc5d1291c7/scipy-1.10.1-cp310-cp310-win_amd64.whl", hash = "sha256:fae8a7b898c42dffe3f7361c40d5952b6bf32d10c4569098d276b4c547905ee1"},
+]
+"setuptools 67.6.0" = [
+    {url = "https://files.pythonhosted.org/packages/25/f3/d68c20919bc774c6cb127f1762f2f2f999d700a58198556e883dd3700e58/setuptools-67.6.0.tar.gz", hash = "sha256:2ee892cd5f29f3373097f5a814697e397cf3ce313616df0af11231e2ad118077"},
+    {url = "https://files.pythonhosted.org/packages/c3/9e/8a7ba2c9984a060daa6c6f9fff4d576b7ace3936239d6b771541eab972ed/setuptools-67.6.0-py3-none-any.whl", hash = "sha256:b78aaa36f6b90a074c1fa651168723acbf45d14cb1196b6f02c0fd07f17623b2"},
+]
+"six 1.16.0" = [
+    {url = "https://files.pythonhosted.org/packages/71/39/171f1c67cd00715f190ba0b100d606d440a28c93c7714febeca8b79af85e/six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
+    {url = "https://files.pythonhosted.org/packages/d9/5a/e7c31adbe875f2abbb91bd84cf2dc52d792b5a01506781dbcf25c91daf11/six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
 ]
 "soupsieve 2.4" = [
     {url = "https://files.pythonhosted.org/packages/1b/cb/34933ebdd6bf6a77daaa0bd04318d61591452eb90ecca4def947e3cb2165/soupsieve-2.4.tar.gz", hash = "sha256:e28dba9ca6c7c00173e34e4ba57448f0688bb681b7c5e8bf4971daafc093d69a"},

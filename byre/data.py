@@ -59,6 +59,19 @@ class ByrUser:
     """用户客户端可连接状态。"""
 
 
+CATEGORIES = {
+    "电影": "Movies",
+    "剧集": "TVSeries",
+    "动漫": "Anime",
+    "音乐": "Music",
+    "综艺": "VarietyShows",
+    "游戏": "Games",
+    "软件": "Software",
+    "资料": "Documents",
+    "体育": "Sports",
+    "纪录": "Documentaries",
+}
+
 PROMOTION_THIRTY_DOWN = "thirty_down"
 
 PROMOTION_HALF_DOWN = "half_down"
@@ -158,16 +171,4 @@ class TorrentInfo:
 
     @staticmethod
     def convert_byr_category(cat: str):
-        directories = {
-            "电影": "Movies",
-            "剧集": "TVSeries",
-            "动漫": "Anime",
-            "音乐": "Music",
-            "综艺": "VarietyShows",
-            "游戏": "Games",
-            "软件": "Software",
-            "资料": "Documents",
-            "体育": "Sports",
-            "纪录": "Documentaries",
-        }
-        return directories.get(cat, "Others")
+        return CATEGORIES.get(cat, "Others")
