@@ -16,7 +16,11 @@
 """北邮人 PT 站的用户、种子等信息。"""
 
 import enum
+import time
+import typing
 from dataclasses import dataclass
+
+import qbittorrentapi
 
 
 @dataclass
@@ -175,3 +179,40 @@ class TorrentInfo:
     @staticmethod
     def convert_byr_category(cat: str):
         return CATEGORIES.get(cat, "Others")
+
+
+@dataclass
+class LocalTorrent:
+    torrent: qbittorrentapi.TorrentDictionary
+    """本地 qBittorrent 管理的种子。"""
+
+    seed_id: int
+    """对应的北邮人种子 ID。"""
+
+    info: typing.Union[TorrentInfo, None]
+    """种子在北邮人上的信息。"""
+
+    def estimate_info(self):
+        """从本地信息估计种子信息。"""
+        if self.info is not None:
+            return self.info
+        return TorrentInfo(
+            title=self.torrent.name,
+            sub_title="",
+            seed_id=self.seed_id,
+            cat="",
+            category=self.torrent.category,
+            second_category="",
+            promotions=TorrentPromotion.NONE,
+            tag=TorrentTag.ANY,
+            file_size=self.torrent.size / 1000 ** 3,
+            live_time=(time.time() - self.torrent.last_activity) / (24 * 60 * 60),
+            seeders=self.torrent.num_complete,
+            leechers=self.torrent.num_incomplete,
+            finished=0,
+            comments=0,
+            uploader=ByrUser(),
+            uploaded=self.torrent.uploaded / 1000 ** 3,
+            downloaded=self.torrent.downloaded / 1000 ** 3,
+            ratio=self.torrent.ratio,
+        )

@@ -57,10 +57,10 @@ class BtClientTestCase(unittest.TestCase):
 
         torrent.category = "Others"
         client.add_torrent(byr.download_torrent(torrent.seed_id), torrent, paused=True)
-        local = [t for t in client.list_torrents() if torrent.title in t.torrent.name]
+        local = [t for t in client.list_torrents([]) if torrent.title in t.torrent.name]
         self.assertEqual(1, len(local))
         client.remove_torrent(local[0])
-        local = [t for t in client.list_torrents() if torrent.title in t.torrent.name]
+        local = [t for t in client.list_torrents([]) if torrent.title in t.torrent.name]
         self.assertEqual(0, len(local))
 
         client.init_tags(reset=True)

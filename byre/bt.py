@@ -16,24 +16,15 @@
 import logging
 import os.path
 import typing
-from dataclasses import dataclass
 from urllib.parse import urlparse
 
 import qbittorrentapi
 
-from byre import TorrentInfo, utils
+from byre import utils
+from byre.data import LocalTorrent, TorrentInfo
 
 _logger = logging.getLogger("byre.bt")
 _debug, _info, _warning, _fatal = _logger.debug, _logger.info, _logger.warning, _logger.fatal
-
-
-@dataclass
-class LocalTorrent:
-    torrent: qbittorrentapi.TorrentDictionary
-    """本地 qBittorrent 管理的种子。"""
-
-    seed_id: int
-    """对应的北邮人种子 ID。"""
 
 
 class BtClient:
@@ -62,15 +53,11 @@ class BtClient:
                 _debug("类别“%s”已存在，跳过创建", category)
                 continue
             download_dir = os.path.join(self._dir, category)
-            torrent_dir = os.path.join(self._dir, "Torrents", category)
             os.makedirs(download_dir, exist_ok=True)
-            os.makedirs(torrent_dir, exist_ok=True)
             _debug("正在创建类别“%s”", category)
             self.client.torrents_create_category(
                 category,
-                torrent_dir=torrent_dir,
-                download_dir=download_dir,
-                enable_download_path=False,
+                torrent_dir=download_dir,
             )
 
     def remove_categories(self, categories: typing.Iterable[str]):
@@ -99,12 +86,12 @@ class BtClient:
         _info("正在添加种子“%s”", title)
         self.client.torrents_add(
             torrent_files=torrent,
+            save_path=self._get_download_dir(info),
             category=info.category,
             is_skip_checking=False,
             is_paused=paused,
             rename=title,
             tags=["byr"],
-            download_path=self._get_download_dir(info),
         )
 
     def remove_torrent(self, torrent: LocalTorrent):
@@ -112,15 +99,16 @@ class BtClient:
         _info("正在删除种子“%s”", torrent.torrent.name)
         self.client.torrents_delete(delete_files=True, torrent_hashes=[torrent.torrent.hash])
 
-    def list_torrents(self):
+    def list_torrents(self, remote_torrents: list[TorrentInfo]):
         """列出所有本地带有“byr”标签且命名符合要求的种子。"""
+        remote_mapping = dict((t.seed_id, t) for t in remote_torrents)
         torrents = []
         for torrent in self.client.torrents_info(tag="byr"):
             name: str = torrent["name"]
             if name.startswith("[byr-"):
                 seed_id = utils.int_or(name[5:name.index("]")])
                 if seed_id != 0:
-                    torrents.append(LocalTorrent(torrent, seed_id))
+                    torrents.append(LocalTorrent(torrent, seed_id, remote_mapping.get(seed_id, None)))
                     continue
             _warning("种子命名不符合要求：%s", name)
         return torrents
