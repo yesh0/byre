@@ -37,6 +37,8 @@ def main(config: GlobalConfig, verbose: bool):
     logging.basicConfig(stream=sys.stderr)
     if verbose:
         logging.getLogger("byre").setLevel(logging.DEBUG)
+    else:
+        logging.getLogger("byre").setLevel(logging.INFO)
 
 
 @main.group()
