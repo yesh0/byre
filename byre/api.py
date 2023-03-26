@@ -32,7 +32,7 @@ from byre import utils
 from byre.data import ByrUser, TorrentInfo, TorrentPromotion, TorrentTag, UserTorrentKind
 
 _logger = logging.getLogger("byre.api")
-_debug, _info, _warning, _fatal = _logger.debug, _logger.info, _logger.warning, _logger.fatal
+_debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
 
 
 class ByrClient:

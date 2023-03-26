@@ -22,10 +22,10 @@ import tabulate
 import tomli
 
 from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, ByrSortableField, UserTorrentKind, \
-    LocalTorrent
+    LocalTorrent, scoring
 
 _logger = logging.getLogger("byre.commands")
-_warning = _logger.warning
+_debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
 
 
 class GlobalConfig(click.ParamType):
@@ -51,6 +51,7 @@ class GlobalConfig(click.ParamType):
 
     byr: ByrApi = None
     bt: BtClient = None
+    scorer: scoring.Scorer = None
 
     def convert(self, value: str, param, ctx):
         with open(value, "rb") as file:
@@ -71,13 +72,19 @@ class GlobalConfig(click.ParamType):
         self.removal_exemption_days = self._optional(float, 15., "scoring", "removal_exemption_days")
         return self
 
-    def init(self, byr=False, bt=False):
+    def init(self, bt=False, byr=False, scorer=False):
         """初始化北邮人客户端等。"""
         if byr:
             self.byr = ByrApi(ByrClient(*self.byr_credentials))
             time.sleep(0.5)
         if bt:
             self.bt = BtClient(self.qbittorrent_url, self.download_dir)
+        if scorer:
+            self.scorer = scoring.Scorer(
+                self.free_weight,
+                self.cost_recovery_days,
+                self.removal_exemption_days,
+            )
 
     def display_torrent_info(self, seed: str):
         if seed.isdigit():
@@ -149,6 +156,41 @@ class GlobalConfig(click.ParamType):
             return
         self._display_local_torrents(torrents, speed)
 
+    def run(self, dry_run=False, print_scores=False):
+        self.init(bt=True, byr=True, scorer=True)
+        _info("正在合并远端种子列表和本地种子列表信息")
+        remote = self.byr.list_user_torrents()
+        local = self.bt.list_torrents(remote)
+
+        _info("正在对本地种子评分")
+        scored_local = list(filter(lambda t: t[1] >= 0, ((t, self.scorer.score_uploading(t)) for t in local)))
+        scored_local.sort(key=lambda t: t[1])
+        local_dict = dict((t[0].seed_id, i) for i, t in enumerate(scored_local))
+
+        _info("正在抓取新种子")
+        lists = [self.byr.list_torrents(0)]
+        time.sleep(0.5)
+        lists.append(self.byr.list_torrents(0, sorted_by=ByrSortableField.LEECHER_COUNT))
+        time.sleep(0.5)
+        lists.append(self.byr.list_torrents(0, promotion=TorrentPromotion.FREE))
+        time.sleep(0.5)
+        fetched = []
+        _debug("正在将已下载的种子从新种子列表中除去")
+        for torrent in self._merge_torrent_list(*lists):
+            if torrent.seed_id in local_dict:
+                scored_local[local_dict[torrent.seed_id]][0].info = torrent
+            else:
+                fetched.append(torrent)
+
+        _info("正在对新种子评分")
+        candidates = [(t, self.scorer.score_downloading(t)) for t in fetched]
+        candidates.sort(key=lambda t: t[1], reverse=True)
+        if print_scores:
+            self._display_scored_torrents(candidates[:10])
+
+        _info("正在计算最终种子选择")
+        self._plan(scored_local, candidates)
+
     def _require(self, typer: typing.Callable, *args, password=False):
         config = self.config
         for arg in args:
@@ -213,3 +255,38 @@ class GlobalConfig(click.ParamType):
                 click.style(f"/ {t.torrent.size / 1000 ** 3:.2f} GB", dim=True)
             ))
         click.echo_via_pager(tabulate.tabulate(table, headers=header, maxcolwidths=limits, disable_numparse=True))
+
+    @staticmethod
+    def _merge_torrent_list(*lists: list[TorrentInfo]):
+        result = {}
+        for torrents in lists:
+            for torrent in torrents:
+                if torrent.seed_id not in result:
+                    result[torrent.seed_id] = torrent
+        return list(result.values())
+
+    @staticmethod
+    def _display_scored_torrents(torrents: list[tuple[TorrentInfo, float]]):
+        table = []
+        header = ["评分", "标题", ""]
+        limits = [8, 60, 10]
+        for t, score in torrents:
+            table.append((
+                click.style(f"{score:.2f}", fg="bright_yellow"),
+                click.style(t.title, bold=True),
+                click.style(f"{t.file_size:.2f} GB", fg="yellow"),
+            ))
+            table.append((
+                "",
+                click.style(t.sub_title, dim=True)
+                + " (" + click.style(f"{t.seeders}↑", fg="bright_green")
+                + " " + click.style(f"{t.leechers}↓", fg="cyan")
+                + " " + click.style(f"{t.finished}✓", fg="yellow") + " )",
+                click.style(f"{t.live_time:.2f} 天", fg="bright_magenta"),
+            ))
+        click.echo_via_pager(tabulate.tabulate(table, headers=header, maxcolwidths=limits, disable_numparse=True))
+
+    @staticmethod
+    def _plan(local: list[tuple[LocalTorrent, float]], remote: list[tuple[TorrentInfo, float]]):
+        """贪心选取预期分享率最大的新种子，替换预期分享率最低的已有种子。"""
+        pass

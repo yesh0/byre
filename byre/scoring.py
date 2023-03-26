@@ -46,7 +46,10 @@ def _piecewise_linear(points: list[tuple[float, float]], x: float):
 
 
 def _sigmoid(x: float):
-    return 1 / (1 + math.exp(-x))
+    try:
+        return 1 / (1 + math.exp(-x))
+    except OverflowError:
+        return 0.
 
 
 @dataclass
@@ -65,6 +68,9 @@ class Scorer:
     file_size_weights = [(0., 0.1), (2., 1.0), (15., 1.0), (60., 0.1), (500., 0.01)]
     """按文件大小来计算的评分系数，由点指定的分段线性函数。"""
 
+    leecher_weights = [(0., 0.1), (2., 0.6), (6., 0.9), (10., 1.0)]
+    """按下载者数量来计算的评分系数，主要用来表示太少人下载时的风险程度。"""
+
     def score_downloading(self, torrent: TorrentInfo):
         """为某个种子的下载价值评分，输出是下载完成后每天预期的分享率。"""
         if torrent.seeders <= 0:
@@ -76,10 +82,11 @@ class Scorer:
 
         finished_ratio = 0.5 * _sigmoid(-torrent.live_time + 30) + 0.5
         value = (
-                (finished_ratio * torrent.finished + torrent.leechers * 1.5)
-                / (torrent.live_time + 2)
+                ((finished_ratio * torrent.finished + torrent.leechers * 1.5)
+                 / (torrent.live_time + 2) + torrent.leechers)
                 / (torrent.seeders + torrent.leechers + 1)
         )
+        value *= _piecewise_linear(self.leecher_weights, torrent.leechers)
 
         if PROMOTION_TWO_UP in torrent.promotions:
             value *= 2

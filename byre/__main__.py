@@ -90,6 +90,14 @@ def bt_list(wants_all: bool, speed: bool):
     _commands.list_bt_torrents(wants_all, speed)
 
 
+@main.command(name="run")
+@click.option("-d", "--dry-run", is_flag=True, help="计算种子选择结果，但不添加种子到本地")
+@click.option("-p", "--print", "print_scores", is_flag=True, help="显示新种子评分以及最终选择结果")
+def run(dry_run: bool, print_scores: bool):
+    """选择性地在本地开始北邮人种子的下载。"""
+    _commands.run(dry_run, print_scores)
+
+
 os.environ["LANGUAGE"] = "zh"
 gettext.bindtextdomain("messages", localedir=os.path.join(os.path.dirname(os.path.realpath(__file__)), "locales"))
 
