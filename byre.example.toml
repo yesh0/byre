@@ -1,0 +1,58 @@
+# 标着 (*) 往往是要改的
+
+[byr]
+# 北邮人相关设置
+
+# (*) 北邮人用户名
+username = "用户名用户名用户名"
+# (*) 北邮人账户密码，其实也可以整一行删掉，在实际跑脚本时输入
+password = "密码密码密码"
+
+# 登录信息缓存文件路径
+cookie_cache = "byr.cookies"
+
+# 访问北邮人用的 HTTP 代理，不知道有什么用，总之放在这里，有想要折腾的可以试试
+http_proxy = ""
+
+[qbittorrent]
+# qBittorrent 相关信息
+# 需要把 Web UI 开起来
+
+# (*) qBittorrent 端点信息，格式如下：
+#     http://用户名:密码@域名或IP:端口
+#
+#  或者如果你成功配置了 HTTPS 的话：
+#     https://用户名:密码@域名或IP:端口
+#
+# - “域名或IP”通常是 localhost 或是 127.0.0.1，如果你的配置不同于此，那么：
+#    1. 你应该知道你自己在做什么；
+#    2. 建议无论如何配上 HTTPS。
+#
+# - “端口”通常是 8080，这个在 qBittorrent Web UI 设置最顶头的位置。
+#
+# - “用户名”和“密码”也在 Web UI 设置里。
+url = "http://qBittorrent用户名:qBittorrent密码@localhost:8080"
+
+# (*) 下载目录
+download_dir = "/home/pi/Downloads"
+
+[planning]
+# 实际可用空间的规划相关
+
+# (*) 总可用空间上限（GB），脚本会控制本地北邮人种子的总大小不超过上限
+max_total_size = 500
+
+# (*) 单次下载的下载量上限（GB）
+max_download_size = 25
+
+[scoring]
+# 种子评分相关，一些程序判断种子“价值”高低的参数
+
+# 免费促销能给种子带来的额外权重
+free_weight = 1.0
+
+# “回本”的天数阈值，如果一个种子预估的回本天数大于此，那它的价值就会被直接判定为零
+cost_recovery_days = 7.0
+
+# 下载之后的删除豁免天数，一个种子下载后的这段时间内不会被删除
+removal_exemption_days = 15.0
