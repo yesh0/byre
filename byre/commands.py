@@ -19,7 +19,7 @@ import click
 import tabulate
 import tomli
 
-from byre import ByrApi, BtClient, ByrClient
+from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, ByrSortableField
 
 
 class GlobalConfig(click.ParamType):
@@ -113,6 +113,11 @@ class GlobalConfig(click.ParamType):
             ("上传排行", click.style(f"{user.ranking}", dim=True)),
         ], showindex=True))
 
+    def list_torrents(self, page=0, promotions=TorrentPromotion.ANY, sorted_by=ByrSortableField.ID):
+        self.init(byr=True)
+        torrents = self.byr.list_torrents(page, promotion=promotions, sorted_by=sorted_by)
+        self._display_torrents(torrents)
+
     def _require(self, typer: typing.Callable, *args):
         config = self.config
         for arg in args:
@@ -129,3 +134,25 @@ class GlobalConfig(click.ParamType):
             return self._require(typer, *args)
         except ValueError:
             return default
+
+    @staticmethod
+    def _display_torrents(torrents: list[TorrentInfo]):
+        table = []
+        header = ["ID", "标题", "大小", "时间"]
+        limits = [8, 60, 10, 10]
+        for t in torrents:
+            table.append((
+                t.seed_id,
+                click.style(t.title, bold=True),
+                click.style(f"{t.file_size:.2f} GB", fg="bright_yellow"),
+                click.style(f"{t.live_time:.2f} 天", fg="bright_magenta"),
+            ))
+            table.append((
+                "",
+                click.style(t.sub_title, dim=True)
+                + "(" + click.style(f"{t.seeders}↑", fg="bright_green")
+                + " " + click.style(f"{t.leechers}↓", fg="cyan") + " )",
+                "",
+                "",
+            ))
+        click.echo_via_pager(tabulate.tabulate(table, headers=header, maxcolwidths=limits))
