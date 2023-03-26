@@ -135,14 +135,19 @@ class GlobalConfig(click.ParamType):
             _warning("用户做种列表的信息最完善，其它列表会有信息缺失")
         self._display_torrents(torrents)
 
-    def list_bt_torrents(self, wants_all=False):
+    def list_bt_torrents(self, wants_all=False, speed=False):
         self.init(bt=True, byr=True)
         remote = self.byr.list_user_torrents()
         torrents = self.bt.list_torrents(remote, wants_all=wants_all)
+        if speed:
+            torrents = [t for t in torrents if t.torrent.dlspeed + t.torrent.upspeed > 0]
+            torrents.sort(key=lambda t: t.torrent.dlspeed + t.torrent.upspeed, reverse=True)
+        else:
+            torrents.sort(key=lambda t: t.torrent.last_activity, reverse=True)
         if len(torrents) == 0:
             _warning("本地无相关种子")
             return
-        self._display_local_torrents(torrents)
+        self._display_local_torrents(torrents, speed)
 
     def _require(self, typer: typing.Callable, *args, password=False):
         config = self.config
@@ -185,23 +190,26 @@ class GlobalConfig(click.ParamType):
         click.echo_via_pager(tabulate.tabulate(table, headers=header, maxcolwidths=limits, disable_numparse=True))
 
     @staticmethod
-    def _display_local_torrents(torrents: list[LocalTorrent]):
+    def _display_local_torrents(torrents: list[LocalTorrent], speed=False):
         table = []
-        header = ["Hash", "标题", "累计", "分享率"]
+        header = ["最后活跃", "标题", "速度" if speed else "累计", "分享率"]
         limits = [8, 80, 10, 10]
         for t in torrents:
+            days = (time.time() - t.torrent.last_activity) / (24 * 60 * 60)
             table.append((
-                click.style(t.torrent.hash[:7], dim=True),
-                click.style(t.torrent.name, bold=True)
-                + " (" + click.style(f"{t.torrent.num_complete}↑", fg="bright_green")
-                + " " + click.style(f"{t.torrent.num_incomplete}↓", fg="cyan") + " )",
-                click.style(f"{t.torrent.uploaded / 1000 ** 3:.2f} GB↑", fg="bright_green"),
+                click.style(f"{days:.2f} 天", fg="yellow"),
+                click.style(t.torrent.name, bold=True),
+                click.style(f"{t.torrent.upspeed / 1000 ** 2:.2f} MB/s↑" if speed
+                            else f"{t.torrent.uploaded / 1000 ** 3:.2f} GB↑", fg="bright_green"),
                 click.style(f"{t.torrent.ratio:.2f}", fg="bright_yellow"),
             ))
             table.append((
                 "",
-                "",
-                click.style(f"{t.torrent.downloaded / 1000 ** 3:.2f} GB↓", fg="cyan"),
+                click.style(t.torrent.hash, dim=True)
+                + " (" + click.style(f"{t.torrent.num_complete}↑", fg="bright_green")
+                + " " + click.style(f"{t.torrent.num_incomplete}↓", fg="cyan") + " )",
+                click.style(f"{t.torrent.dlspeed / 1000 ** 3:.2f} MB/s↓" if speed
+                            else f"{t.torrent.downloaded / 1000 ** 3:.2f} GB↓", fg="cyan"),
                 click.style(f"/ {t.torrent.size / 1000 ** 3:.2f} GB", dim=True)
             ))
         click.echo_via_pager(tabulate.tabulate(table, headers=header, maxcolwidths=limits, disable_numparse=True))

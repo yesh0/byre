@@ -84,9 +84,10 @@ def bt():
 
 @bt.command(name="list")
 @click.option("-a", "--all", "wants_all", is_flag=True, help="显示所有种子，包括不是由脚本添加的种子")
-def bt_list(wants_all: bool):
+@click.option("-s", "--speed", is_flag=True, help="只显示有上传或下载速度的种子")
+def bt_list(wants_all: bool, speed: bool):
     """列出本地所有相关种子。"""
-    _commands.list_bt_torrents(wants_all)
+    _commands.list_bt_torrents(wants_all, speed)
 
 
 os.environ["LANGUAGE"] = "zh"
