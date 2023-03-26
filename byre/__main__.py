@@ -21,7 +21,7 @@ import typing
 
 import click
 
-from byre import TorrentPromotion, ByrSortableField
+from byre import TorrentPromotion, ByrSortableField, UserTorrentKind
 from byre.commands import GlobalConfig
 
 _commands: typing.Union[GlobalConfig, None] = None
@@ -67,6 +67,14 @@ def byr_user(user_id: int):
 def byr_list(page: int, promotion: str, order: str):
     """显示北邮人种子列表（页码从零开始）。"""
     _commands.list_torrents(page, TorrentPromotion[promotion.upper()], ByrSortableField[order.upper()])
+
+
+@byr.command(name="mine")
+@click.option("-k", "--kind", type=click.Choice([p.name.lower() for p in UserTorrentKind], case_sensitive=False),
+              default="seeding", help="用户种子列表")
+def byr_user_torrents(kind: str):
+    """显示用户的种子列表（如正在做种、正在下载等列表）。"""
+    _commands.list_user_torrents(UserTorrentKind[kind.upper()])
 
 
 os.environ["LANGUAGE"] = "zh"

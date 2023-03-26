@@ -29,7 +29,7 @@ import bs4
 import requests
 
 from byre import utils
-from byre.data import ByrUser, TorrentInfo, TorrentPromotion, TorrentTag
+from byre.data import ByrUser, TorrentInfo, TorrentPromotion, TorrentTag, UserTorrentKind
 
 _logger = logging.getLogger("byre.api")
 _debug, _info, _warning, _fatal = _logger.debug, _logger.info, _logger.warning, _logger.fatal
@@ -274,11 +274,15 @@ class ByrApi:
         )
         return self._extract_torrent_table(page.select("table.torrents > form > tr")[1:])
 
-    def list_user_torrents(self, kind="seeding"):
+    def list_user_torrents(self, kind=UserTorrentKind.SEEDING):
         """从 Ajax API 获取用户正在上传的种子列表。"""
         # noinspection SpellCheckingInspection
-        page = self.client.get_soup(f"getusertorrentlistajax.php?userid={self.current_user_id()}&type={kind}")
-        # 表格的格式：
+        page = self.client.get_soup(
+            f"getusertorrentlistajax.php?userid={self.current_user_id()}&type={kind.name.lower()}")
+        if kind != UserTorrentKind.SEEDING:
+            # 其它表格基本只有类型和标题两列信息有用
+            return self._extract_torrent_table(page.select("table > tr")[1:], *([None]*10))
+        # 上传种子表格的格式：
         #   0     1     2      3       4       5       6       7
         # 类型、题目、大小、做种数、下载数、上传量、下载量、分享率
         return self._extract_torrent_table(
@@ -408,11 +412,17 @@ class ByrApi:
         connectable = page.select_one("#info_block font[color=green]")
         user.connectable = connectable is not None and "是" in connectable.text
 
-    def _extract_torrent_table(self, rows: bs4.element.ResultSet[bs4.Tag], comment_cell: typing.Optional[int] = 2,
-                               live_time_cell: typing.Optional[int] = 3, size_cell=4,
-                               seeder_cell=5, leecher_cell=6, finished_cell: typing.Optional[int] = 7,
-                               uploader_cell: typing.Optional[int] = 8, uploaded_cell: typing.Optional[int] = None,
-                               downloaded_cell: typing.Optional[int] = None, ratio_cell: typing.Optional[int] = None,
+    def _extract_torrent_table(self, rows: bs4.element.ResultSet[bs4.Tag],
+                               comment_cell: typing.Optional[int] = 2,
+                               live_time_cell: typing.Optional[int] = 3,
+                               size_cell: typing.Optional[int] = 4,
+                               seeder_cell: typing.Optional[int] = 5,
+                               leecher_cell: typing.Optional[int] = 6,
+                               finished_cell: typing.Optional[int] = 7,
+                               uploader_cell: typing.Optional[int] = 8,
+                               uploaded_cell: typing.Optional[int] = None,
+                               downloaded_cell: typing.Optional[int] = None,
+                               ratio_cell: typing.Optional[int] = None,
                                sec_type=False):
         """
         从 torrents.php 页面的种子表格中提取信息。
@@ -432,9 +442,9 @@ class ByrApi:
                 datetime.datetime.fromisoformat(cells[live_time_cell].select_one("span").attrs["title"])
                 if live_time_cell is not None else datetime.datetime.now()
             )
-            size = utils.convert_byr_size(cells[size_cell].get_text(strip=True))
-            seeders = utils.int_or(cells[seeder_cell].get_text(strip=True))
-            leechers = utils.int_or(cells[leecher_cell].get_text(strip=True))
+            size = utils.convert_byr_size(cells[size_cell].get_text(strip=True)) if size_cell is not None else 0.
+            seeders = utils.int_or(cells[seeder_cell].get_text(strip=True)) if seeder_cell is not None else 0
+            leechers = utils.int_or(cells[leecher_cell].get_text(strip=True)) if leecher_cell is not None else 0
             finished = utils.int_or(cells[finished_cell].get_text(strip=True)) if finished_cell is not None else 0
             uploaded = utils.convert_byr_size(
                 cells[uploaded_cell].get_text(strip=True)) if uploaded_cell is not None else 0

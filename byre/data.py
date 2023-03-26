@@ -133,6 +133,19 @@ class TorrentTag(enum.Enum):
     RECOMMENDED = 3
 
 
+class UserTorrentKind(enum.Enum):
+    """
+    与用户相关的种子的类型，用于 getusertorrentlistajax.php 端点。
+
+    后面的数字值没有任何意义。
+    """
+    UPLOADED = 1
+    SEEDING = 2
+    LEECHING = 3
+    COMPLETED = 4
+    INCOMPLETE = 5
+
+
 @dataclass
 class TorrentInfo:
     """从北邮人上抓取来的种子信息。"""

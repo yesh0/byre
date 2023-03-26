@@ -12,14 +12,18 @@
 #
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+import logging
 import typing
 
 import click
 import tabulate
 import tomli
 
-from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, ByrSortableField
+from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, ByrSortableField, UserTorrentKind
+
+
+_logger = logging.getLogger("byre.commands")
+_warning = _logger.warning
 
 
 class GlobalConfig(click.ParamType):
@@ -99,7 +103,7 @@ class GlobalConfig(click.ParamType):
         self.init(byr=True)
         user = self.byr.user_info(user_id)
         if user.user_id != self.byr.current_user_id():
-            click.echo("查询的用户并非当前登录用户，限于权限，信息可能不准确")
+            _warning("查询的用户并非当前登录用户，限于权限，信息可能不准确")
         click.echo(tabulate.tabulate([
             ("用户名", click.style(user.username, bold=True)),
             ("链接", click.style(f"https://byr.pt/details.php?id={user.user_id}", underline=True)),
@@ -116,6 +120,16 @@ class GlobalConfig(click.ParamType):
     def list_torrents(self, page=0, promotions=TorrentPromotion.ANY, sorted_by=ByrSortableField.ID):
         self.init(byr=True)
         torrents = self.byr.list_torrents(page, promotion=promotions, sorted_by=sorted_by)
+        self._display_torrents(torrents)
+
+    def list_user_torrents(self, kind: UserTorrentKind):
+        self.init(byr=True)
+        torrents = self.byr.list_user_torrents(kind)
+        if len(torrents) == 0:
+            _warning("种子列表为空")
+            return
+        if kind != UserTorrentKind.SEEDING:
+            _warning("用户做种列表的信息最完善，其它列表会有信息缺失")
         self._display_torrents(torrents)
 
     def _require(self, typer: typing.Callable, *args):
