@@ -31,8 +31,19 @@ _commands: typing.Union[GlobalConfig, None] = None
 @click.option("-c", "--config", type=GlobalConfig(), default="byre.toml", help="TOML 格式配置文件")
 @click.option("-v", "--verbose", is_flag=True, help="输出详细信息")
 def main(config: GlobalConfig, verbose: bool):
-    """北邮人命令行操作以及 BT 软件整合实现。"""
+    """
+    北邮人命令行操作以及 BT 软件整合实现。
+
+    软件主要通过 qBittorrent 的标签功能来标记北邮人 PT 的种子，
+    再在种子名称前加入 ``[byr-北邮人ID]`` 来建立本地种子与
+    北邮人种子的关联。
+
+    详细的使用说明请见代码仓库的 README 文件：
+
+        https://github.com/yesh0/byre
+    """
     global _commands
+    utils.colorize_logger(None)
     _commands = config
     logging.basicConfig(stream=sys.stderr)
     if verbose:
@@ -120,9 +131,9 @@ def download(seed: str, dry_run: bool):
     _commands.download_one(seed, dry_run)
 
 
+# 这些要在 click 产生输出之前设置好，因为要兼容 setuptools 的配置（直接调用 main 函数），所以只能放这里了。
 os.environ["LANGUAGE"] = "zh"
 gettext.bindtextdomain("messages", localedir=os.path.join(os.path.dirname(os.path.realpath(__file__)), "locales"))
 
 if __name__ == "__main__":
-    utils.colorize_logger(None)
     main()

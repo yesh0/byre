@@ -39,6 +39,8 @@ class GlobalConfig(click.ParamType):
 
     byr_credentials = ("", "", "")
 
+    byr_proxy = ""
+
     qbittorrent_url = ""
 
     download_dir = ""
@@ -67,6 +69,7 @@ class GlobalConfig(click.ParamType):
             self._require(str, "byr", "password", password=True),
             self._optional(str, "byr.cookies", "byr", "cookie_cache")
         )
+        self.byr_proxy = self._optional(str, "", "byr", "http_proxy")
         self.qbittorrent_url, self.download_dir = (
             self._require(str, "qbittorrent", "url", password=True),
             self._require(str, "qbittorrent", "download_dir"),
@@ -81,7 +84,13 @@ class GlobalConfig(click.ParamType):
     def init(self, bt=False, byr=False, planner=False, scorer=False):
         """初始化北邮人客户端等。"""
         if byr and self.byr is None:
-            self.byr = ByrApi(ByrClient(*self.byr_credentials))
+            self.byr = ByrApi(ByrClient(
+                *self.byr_credentials,
+                proxies={
+                    "http": self.byr_proxy,
+                    "https": self.byr_proxy,
+                } if self.byr_proxy else None,
+            ))
             time.sleep(0.5)
         if bt and self.bt is None:
             self.bt = BtClient(self.qbittorrent_url, self.download_dir)
