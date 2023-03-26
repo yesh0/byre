@@ -87,7 +87,7 @@ class ByrClient:
 
     def get(self, path: str, retries=3, allow_redirects=False):
         """使用当前会话发起请求，返回 `requests.Response`。"""
-        _debug("正在请求 %s", path)
+        _debug("正在请求 %s", path or "/")
         for i in range(retries):
             res = self._session.get(ByrClient._get_url(path), allow_redirects=allow_redirects)
             if res.status_code == 200:

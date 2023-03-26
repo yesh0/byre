@@ -211,7 +211,7 @@ class GlobalConfig(click.ParamType):
                 ))
         _info(
             "重命名结果：\n" +
-            tabulate.tabulate((*failed, *found), maxcolwidths=[2, 80, 10, 10])
+            tabulate.tabulate((*failed, *found), maxcolwidths=[2, 80, 10, 10], disable_numparse=True)
         )
         if dry_run:
             _info("以上计划未被实际运行；若想实际重命名，请去除命令行 -d / --dry-run 选项")
@@ -227,8 +227,9 @@ class GlobalConfig(click.ParamType):
         if target is None:
             candidates = self._fetch_candidates(scored_local, local_dict)
         else:
-            _info("准备下载指定种子，将种子的价值设为无穷")
+            _info("准备下载指定种子，将种子的价值设为无穷，去除单次下载量上限")
             candidates = [(target, math.inf)]
+            self.planner.max_download_size = self.planner.max_total_size
         if print_scores:
             self._display_scored_torrents(candidates[:10])
 
@@ -245,15 +246,19 @@ class GlobalConfig(click.ParamType):
             tabulate.tabulate((
                 *((
                     click.style("删", fg="bright_red"),
+                    click.style(f"{t.seed_id}", dim=True),
                     click.style(t.torrent.name, dim=True),
                     click.style(f"-{t.torrent.size / 1000 ** 3:.2f} GB", fg="light_green"),
+                    "",
                 ) for t in removable),
                 *((
                     click.style("新", fg="bright_cyan"),
+                    click.style(f"{t.seed_id}", dim=True),
                     click.style(t.title, bold=True),
                     click.style(f"+{t.file_size:.2f} GB", fg="yellow"),
+                    click.style(str(t.promotions), fg="yellow"),
                 ) for t in downloadable),
-            ), maxcolwidths=[2, 80, 10])
+            ), maxcolwidths=[2, 8, 80, 10, 10], disable_numparse=True)
         ))
         if print_scores:
             click.echo_via_pager(summary)
@@ -261,6 +266,16 @@ class GlobalConfig(click.ParamType):
             _info(summary)
         if dry_run:
             _info("以上计划未被实际运行；若想开始下载，请去除命令行 -d / --dry-run 选项")
+        else:
+            for t in removable:
+                _info("正在删除：%s", t.torrent.name)
+                self.bt.remove_torrent(t)
+                time.sleep(0.5)
+            for t in downloadable:
+                _info("正在添加下载：[byr-%d]%s", t.seed_id, t.title)
+                torrent = self.byr.download_torrent(t.seed_id)
+                self.bt.add_torrent(torrent, t)
+                time.sleep(0.5)
 
     def _require(self, typer: typing.Callable, *args, password=False):
         config = self.config
