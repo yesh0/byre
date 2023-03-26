@@ -162,10 +162,10 @@ class GlobalConfig(click.ParamType):
             return
         self._display_local_torrents(torrents, speed)
 
-    def download_one(self, seed: str):
+    def download_one(self, seed: str, dry_run: bool):
         seed_id = self._parse_seed_id(seed)
         self.init(byr=True)
-        self.download(self.byr.torrent(seed_id))
+        self.download(self.byr.torrent(seed_id), dry_run)
 
     def fix(self, dry_run: bool):
         self.init(bt=True, byr=True)

@@ -14,8 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """一些工具函数。"""
-
+import io
 import logging
+
+import click
 
 _logger = logging.getLogger("byre.utils")
 _warning = _logger.warning
@@ -51,3 +53,49 @@ def float_or(s: str, default=0.):
         return float(s)
     except ValueError:
         return default
+
+
+def colorize_logger(name="byre"):
+    class ClickEchoStream(io.StringIO):
+        def write(self, s: str) -> int:
+            click.echo(s, nl=False, err=True)
+            return len(s)
+
+    handler = logging.StreamHandler(stream=ClickEchoStream())
+
+    colors = [
+        (logging.INFO, "white"),
+        (logging.WARNING, "bright_yellow"),
+    ]
+
+    class ColorFormatter(logging.Formatter):
+        def __init__(self):
+            super().__init__(
+                fmt=" ".join((
+                    click.style("%(asctime)s", dim=True),
+                    "%(levelname)5s",
+                    click.style("%(name)s", fg="yellow"),
+                    "%(message)s",
+                )),
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+
+        def format(self, record: logging.LogRecord) -> str:
+            if record.levelno <= logging.DEBUG:
+                record.levelname = click.style(record.levelname, dim=True)
+                record.msg = click.style(record.msg, dim=True)
+            else:
+                for level, color in colors:
+                    if record.levelno <= level:
+                        record.levelname = click.style(record.levelname, fg=color)
+                        break
+                else:
+                    record.levelname = click.style(record.levelname, fg="bright_red")
+                    record.msg = click.style(record.msg, fg="bright_red")
+            return super().format(record)
+
+    handler.setFormatter(ColorFormatter())
+    logger = logging.getLogger(name)
+    for h in list(logger.handlers):
+        logger.removeHandler(h)
+    logger.addHandler(handler)

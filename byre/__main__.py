@@ -21,7 +21,7 @@ import typing
 
 import click
 
-from byre import TorrentPromotion, ByrSortableField, UserTorrentKind
+from byre import TorrentPromotion, ByrSortableField, UserTorrentKind, utils
 from byre.commands import GlobalConfig
 
 _commands: typing.Union[GlobalConfig, None] = None
@@ -114,13 +114,15 @@ def fix(dry_run: bool):
 
 @do.command(name="download")
 @click.argument("seed", type=click.STRING, metavar="<北邮人链接或是种子 ID>")
-def download(seed: str):
+@click.option("-d", "--dry-run", is_flag=True, help="计算种子调整结果，但不添加种子到本地")
+def download(seed: str, dry_run: bool):
     """下载特定种子，可能会删除其它种子腾出空间来满足下载需求。"""
-    _commands.download_one(seed)
+    _commands.download_one(seed, dry_run)
 
 
 os.environ["LANGUAGE"] = "zh"
 gettext.bindtextdomain("messages", localedir=os.path.join(os.path.dirname(os.path.realpath(__file__)), "locales"))
 
 if __name__ == "__main__":
+    utils.colorize_logger(None)
     main()

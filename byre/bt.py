@@ -53,7 +53,6 @@ class BtClient:
                 _debug("类别“%s”已存在，跳过创建", category)
                 continue
             download_dir = os.path.join(self._dir, category)
-            os.makedirs(download_dir, exist_ok=True)
             _debug("正在创建类别“%s”", category)
             self.client.torrents_create_category(
                 category,
