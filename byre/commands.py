@@ -12,15 +12,17 @@
 #
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import logging
+import time
 import typing
 
 import click
 import tabulate
 import tomli
 
-from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, ByrSortableField, UserTorrentKind
-
+from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, ByrSortableField, UserTorrentKind, \
+    LocalTorrent
 
 _logger = logging.getLogger("byre.commands")
 _warning = _logger.warning
@@ -56,11 +58,11 @@ class GlobalConfig(click.ParamType):
 
         self.byr_credentials = (
             self._require(str, "byr", "username"),
-            self._require(str, "byr", "password"),
+            self._require(str, "byr", "password", password=True),
             self._optional(str, "byr.cookies", "byr", "cookie_cache")
         )
         self.qbittorrent_url, self.download_dir, self.size_limit = (
-            self._require(str, "qbittorrent", "url"),
+            self._require(str, "qbittorrent", "url", password=True),
             self._require(str, "qbittorrent", "download_dir"),
             self._require(float, "qbittorrent", "size_limit"),
         )
@@ -73,6 +75,7 @@ class GlobalConfig(click.ParamType):
         """初始化北邮人客户端等。"""
         if byr:
             self.byr = ByrApi(ByrClient(*self.byr_credentials))
+            time.sleep(0.5)
         if bt:
             self.bt = BtClient(self.qbittorrent_url, self.download_dir)
 
@@ -91,13 +94,13 @@ class GlobalConfig(click.ParamType):
             ("促销", click.style(str(torrent.promotions), fg="bright_yellow")),
             ("大小", click.style(f"{torrent.file_size:.2f} GB", fg="cyan")),
             ("存活时间", click.style(f"{torrent.live_time:.2f} 天", fg="bright_green")),
-            ("做种人数", f"~ {torrent.seeders}"),
-            ("下载人数", click.style(f"~ {torrent.leechers}", fg="bright_magenta")),
+            ("做种人数", f"{torrent.seeders}"),
+            ("下载人数", click.style(f"{torrent.leechers}", fg="bright_magenta")),
             ("上传用户", f"{torrent.uploader.username} " +
              (click.style(f"<https://byr.pt/userdetails.php?id={torrent.uploader.user_id}>", underline=True)
               if torrent.uploader.user_id != 0 else "")
              ),
-        ], maxcolwidths=[2, 10, 70], showindex=True))
+        ], maxcolwidths=[2, 10, 70], showindex=True, disable_numparse=True))
 
     def display_user_info(self, user_id=0):
         self.init(byr=True)
@@ -115,7 +118,7 @@ class GlobalConfig(click.ParamType):
             ("分享率", click.style(f"{user.ratio:.2f}", fg="cyan")),
             ("当前活动", f"{user.seeding}↑ {user.downloading}↓"),
             ("上传排行", click.style(f"{user.ranking}", dim=True)),
-        ], showindex=True))
+        ], showindex=True, disable_numparse=True))
 
     def list_torrents(self, page=0, promotions=TorrentPromotion.ANY, sorted_by=ByrSortableField.ID):
         self.init(byr=True)
@@ -132,10 +135,22 @@ class GlobalConfig(click.ParamType):
             _warning("用户做种列表的信息最完善，其它列表会有信息缺失")
         self._display_torrents(torrents)
 
-    def _require(self, typer: typing.Callable, *args):
+    def list_bt_torrents(self, wants_all=False):
+        self.init(bt=True, byr=True)
+        remote = self.byr.list_user_torrents()
+        torrents = self.bt.list_torrents(remote, wants_all=wants_all)
+        if len(torrents) == 0:
+            _warning("本地无相关种子")
+            return
+        self._display_local_torrents(torrents)
+
+    def _require(self, typer: typing.Callable, *args, password=False):
         config = self.config
         for arg in args:
             if arg not in config:
+                if password:
+                    config = click.prompt(f"请输入 {'.'.join(args)} 配置：", hide_input=True)
+                    break
                 raise ValueError(f"缺失 {'.'.join(args)} 配置参数")
             config = config[arg]
         try:
@@ -152,21 +167,41 @@ class GlobalConfig(click.ParamType):
     @staticmethod
     def _display_torrents(torrents: list[TorrentInfo]):
         table = []
-        header = ["ID", "标题", "大小", "时间"]
-        limits = [8, 60, 10, 10]
+        header = ["ID", "标题", ""]
+        limits = [8, 60, 10]
         for t in torrents:
             table.append((
                 t.seed_id,
                 click.style(t.title, bold=True),
                 click.style(f"{t.file_size:.2f} GB", fg="bright_yellow"),
-                click.style(f"{t.live_time:.2f} 天", fg="bright_magenta"),
             ))
             table.append((
                 "",
                 click.style(t.sub_title, dim=True)
-                + "(" + click.style(f"{t.seeders}↑", fg="bright_green")
+                + " (" + click.style(f"{t.seeders}↑", fg="bright_green")
                 + " " + click.style(f"{t.leechers}↓", fg="cyan") + " )",
-                "",
-                "",
+                click.style(f"{t.live_time:.2f} 天", fg="bright_magenta"),
             ))
-        click.echo_via_pager(tabulate.tabulate(table, headers=header, maxcolwidths=limits))
+        click.echo_via_pager(tabulate.tabulate(table, headers=header, maxcolwidths=limits, disable_numparse=True))
+
+    @staticmethod
+    def _display_local_torrents(torrents: list[LocalTorrent]):
+        table = []
+        header = ["Hash", "标题", "累计", "分享率"]
+        limits = [8, 80, 10, 10]
+        for t in torrents:
+            table.append((
+                click.style(t.torrent.hash[:7], dim=True),
+                click.style(t.torrent.name, bold=True)
+                + " (" + click.style(f"{t.torrent.num_complete}↑", fg="bright_green")
+                + " " + click.style(f"{t.torrent.num_incomplete}↓", fg="cyan") + " )",
+                click.style(f"{t.torrent.uploaded / 1000 ** 3:.2f} GB↑", fg="bright_green"),
+                click.style(f"{t.torrent.ratio:.2f}", fg="bright_yellow"),
+            ))
+            table.append((
+                "",
+                "",
+                click.style(f"{t.torrent.downloaded / 1000 ** 3:.2f} GB↓", fg="cyan"),
+                click.style(f"/ {t.torrent.size / 1000 ** 3:.2f} GB", dim=True)
+            ))
+        click.echo_via_pager(tabulate.tabulate(table, headers=header, maxcolwidths=limits, disable_numparse=True))

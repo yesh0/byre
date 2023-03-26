@@ -99,7 +99,7 @@ class BtClient:
         _info("正在删除种子“%s”", torrent.torrent.name)
         self.client.torrents_delete(delete_files=True, torrent_hashes=[torrent.torrent.hash])
 
-    def list_torrents(self, remote_torrents: list[TorrentInfo]):
+    def list_torrents(self, remote_torrents: list[TorrentInfo], wants_all=False):
         """列出所有本地带有“byr”标签且命名符合要求的种子。"""
         remote_mapping = dict((t.seed_id, t) for t in remote_torrents)
         torrents = []
@@ -111,6 +111,8 @@ class BtClient:
                     torrents.append(LocalTorrent(torrent, seed_id, remote_mapping.get(seed_id, None)))
                     continue
             _warning("种子命名不符合要求：%s", name)
+            if wants_all:
+                torrents.append(LocalTorrent(torrent, 0, None))
         return torrents
 
     def _get_download_dir(self, torrent: TorrentInfo):

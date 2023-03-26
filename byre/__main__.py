@@ -77,6 +77,18 @@ def byr_user_torrents(kind: str):
     _commands.list_user_torrents(UserTorrentKind[kind.upper()])
 
 
+@main.group()
+def bt():
+    """BT 客户端（暂只支持 qBittorrent）接口。"""
+
+
+@bt.command(name="list")
+@click.option("-a", "--all", "wants_all", is_flag=True, help="显示所有种子，包括不是由脚本添加的种子")
+def bt_list(wants_all: bool):
+    """列出本地所有相关种子。"""
+    _commands.list_bt_torrents(wants_all)
+
+
 os.environ["LANGUAGE"] = "zh"
 gettext.bindtextdomain("messages", localedir=os.path.join(os.path.dirname(os.path.realpath(__file__)), "locales"))
 
