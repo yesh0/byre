@@ -42,8 +42,6 @@ class GlobalConfig(click.ParamType):
 
     download_dir = ""
 
-    size_limit = ""
-
     free_weight = 0.
 
     cost_recovery_days = 0.
@@ -68,10 +66,9 @@ class GlobalConfig(click.ParamType):
             self._require(str, "byr", "password", password=True),
             self._optional(str, "byr.cookies", "byr", "cookie_cache")
         )
-        self.qbittorrent_url, self.download_dir, self.size_limit = (
+        self.qbittorrent_url, self.download_dir = (
             self._require(str, "qbittorrent", "url", password=True),
             self._require(str, "qbittorrent", "download_dir"),
-            self._require(float, "qbittorrent", "size_limit"),
         )
         self.free_weight = self._optional(float, 1., "scoring", "free_weight")
         self.cost_recovery_days = self._optional(float, 7., "scoring", "cost_recovery_days")

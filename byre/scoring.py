@@ -71,7 +71,7 @@ class Scorer:
     leecher_weights = [(0., 0.1), (2., 0.6), (6., 0.9), (10., 1.0)]
     """按下载者数量来计算的评分系数，主要用来表示太少人下载时的风险程度。"""
 
-    def score_downloading(self, torrent: TorrentInfo):
+    def score_downloading(self, torrent: TorrentInfo, recovery=True):
         """为某个种子的下载价值评分，输出是下载完成后每天预期的分享率。"""
         if torrent.seeders <= 0:
             # 没法下。
@@ -104,7 +104,7 @@ class Scorer:
         size_ratio = _sigmoid((finished_ratio + torrent.finished) / (torrent.live_time + 1) - 20)
         value *= (1 - size_ratio) * _piecewise_linear(self.file_size_weights, torrent.file_size) + size_ratio
 
-        if value < 1 / self.cost_recovery_days:
+        if recovery and value < 1 / self.cost_recovery_days:
             return 0.
 
         return value
@@ -117,4 +117,7 @@ class Scorer:
             return -1.
         if torrent.torrent.completion_on + (self.removal_exemption_days * 24 * 60 * 60) > time.time():
             return -1.
-        return self.score_downloading(torrent.estimate_info())
+        info = torrent.estimate_info()
+        if info.seeders <= 1:
+            return -1.
+        return self.score_downloading(info, recovery=False)
