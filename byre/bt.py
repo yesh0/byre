@@ -82,7 +82,7 @@ class BtClient:
 
     def add_torrent(self, torrent: bytes, info: TorrentInfo, paused=False):
         """添加种子并设置对应的类别和标签。"""
-        title = f"[byr-{info.seed_id}]{info.title}"
+        title = self._generate_rename(info)
         _info("正在添加种子“%s”", title)
         self.client.torrents_add(
             torrent_files=torrent,
@@ -93,6 +93,11 @@ class BtClient:
             rename=title,
             tags=["byr"],
         )
+
+    def rename_torrent(self, torrent: LocalTorrent, info: TorrentInfo):
+        """重新按照格式命名种子。"""
+        title = self._generate_rename(info)
+        self.client.torrents_rename(torrent.torrent.hash, title)
 
     def remove_torrent(self, torrent: LocalTorrent):
         """删除种子并删除对应的文件。"""
@@ -119,3 +124,7 @@ class BtClient:
         """下载目录，由种子分类及二级分类决定。"""
         return (os.path.join(self._dir, torrent.category, torrent.second_category)
                 if torrent.second_category else os.path.join(self._dir, torrent.category))
+
+    @staticmethod
+    def _generate_rename(info):
+        return f"[byr-{info.seed_id}]{info.title}"

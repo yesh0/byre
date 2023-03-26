@@ -204,6 +204,9 @@ class TorrentInfo:
     ratio: float
     """当前用户分享率。"""
 
+    hash: str
+    """种子的 hash 值。"""
+
     @staticmethod
     def convert_byr_category(cat: str):
         return CATEGORIES.get(cat, "Others")
@@ -243,4 +246,5 @@ class LocalTorrent:
             uploaded=self.torrent.uploaded / 1000 ** 3,
             downloaded=self.torrent.downloaded / 1000 ** 3,
             ratio=self.torrent.ratio,
+            hash=self.torrent.hash,
         )

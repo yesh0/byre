@@ -100,6 +100,13 @@ def run(dry_run: bool, print_scores: bool):
     _commands.run(dry_run, print_scores)
 
 
+@main.command(name="fix")
+@click.option("-d", "--dry-run", is_flag=True, help="获取重命名列表，但不重命名")
+def fix(dry_run: bool):
+    """尝试修复 qBittorrent 中的任务名（也即给名称加上 ``[byr-北邮人ID]`` 的前缀）。"""
+    _commands.fix(dry_run)
+
+
 os.environ["LANGUAGE"] = "zh"
 gettext.bindtextdomain("messages", localedir=os.path.join(os.path.dirname(os.path.realpath(__file__)), "locales"))
 

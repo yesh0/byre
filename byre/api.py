@@ -303,12 +303,6 @@ class ByrApi:
         res = self.client.get(f"download.php?id={seed_id}")
         return res.content
 
-    def torrent_second_category(self, seed_id: int):
-        """获取种子的二级类型，用于细分种子，毕竟谁知道最后会下多少种子呢。"""
-        page = self.client.get_soup(f"details.php?id={seed_id}&hit=1")
-        sec_type = page.select_one("span#sec_type")
-        return sec_type.text if sec_type is not None else "其它"
-
     def torrent(self, seed_id: int):
         """获取种子详情。"""
         page = self.client.get_soup(f"details.php?id={seed_id}&hit=1")
@@ -318,7 +312,8 @@ class ByrApi:
         title = next(iter(title_tag.children)).text.strip()
         subtitle = page.select_one("#subtitle").get_text(strip=True)
         cat = page.select_one("span#type").text.strip()
-        sec_cat = page.select_one("span#sec_type").text.strip()
+        sec_type = page.select_one("span#sec_type")
+        sec_cat = sec_type.text.strip() if sec_type is not None else "其它"
         size = utils.convert_byr_size(page.select_one("span#type").parent.find(text=re.compile("\\d")).text)
         promotions = self._extract_promotion_info(title_tag)
         tag = self._extract_tag(title_tag)
@@ -333,6 +328,12 @@ class ByrApi:
         finished = utils.int_or(page.select_one("a[href^=viewsnatches] > b").text)
 
         user = self._extract_user_from_a(page.select_one("h1 + table tr"))
+
+        hash_field = [tag for tag in page.select("h1 + table b") if "Hash码" in tag.text]
+        if len(hash_field) == 0:
+            hs = ""
+        else:
+            hs = hash_field[0].next_sibling.text.strip() if hash_field[0].next_sibling is not None else ""
 
         return TorrentInfo(
             title=title,
@@ -353,6 +354,7 @@ class ByrApi:
             uploaded=0.,
             downloaded=0.,
             ratio=0.,
+            hash=hs,
         )
 
     @staticmethod
@@ -423,11 +425,11 @@ class ByrApi:
                                uploaded_cell: typing.Optional[int] = None,
                                downloaded_cell: typing.Optional[int] = None,
                                ratio_cell: typing.Optional[int] = None,
-                               sec_type=False):
+                               details=False):
         """
         从 torrents.php 页面的种子表格中提取信息。
 
-        提取二级分类需要每个种子抓取一个页面，对服务器不太厚道。默认关闭。
+        提取二级分类、hash 等详情需要每个种子抓取一个页面，对服务器不太厚道。默认关闭。
         """
         torrents = []
         for row in rows:
@@ -470,11 +472,14 @@ class ByrApi:
             promotions = ByrApi._extract_promotion_info(title_cell)
             tag = ByrApi._extract_tag(title_cell)
 
-            if sec_type:
+            if details:
                 time.sleep(0.5)
-                second = self.torrent_second_category(byr_id)
+                remote = self.torrent(byr_id)
+                second = remote.second_category
+                hs = remote.hash
             else:
                 second = ""
+                hs = ""
 
             torrents.append(TorrentInfo(
                 title=title,
@@ -495,6 +500,7 @@ class ByrApi:
                 uploaded=uploaded,
                 downloaded=downloaded,
                 ratio=ratio,
+                hash=hs,
             ))
         return torrents
 

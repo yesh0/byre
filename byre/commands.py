@@ -14,6 +14,7 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import re
 import time
 import typing
 
@@ -166,6 +167,60 @@ class GlobalConfig(click.ParamType):
             return
         self._display_local_torrents(torrents, speed)
 
+    def fix(self, dry_run: bool):
+        self.init(bt=True, byr=True)
+        pending = [t for t in self.bt.list_torrents([], wants_all=True) if t.seed_id == 0]
+        if len(pending) == 0:
+            _info("所有种子均已经正确命名")
+            return
+        for kind in [UserTorrentKind.SEEDING, UserTorrentKind.COMPLETED, UserTorrentKind.LEECHING,
+                     UserTorrentKind.INCOMPLETE]:
+            self._match_against_remote(pending, self.byr.list_user_torrents(kind))
+            if all(t.seed_id != 0 for t in pending):
+                break
+            time.sleep(0.5)
+
+        failed = []
+        found = []
+        arrow = click.style("=>", dim=True)
+        for t in pending:
+            if t.seed_id == 0:
+                failed.append((
+                    click.style("!!", fg="bright_red"),
+                    click.style(t.torrent.name, fg="bright_red"),
+                    f"{t.torrent.size / 1000 ** 3:.2f} gb",
+                    t.torrent.hash[:7],
+                ))
+                failed.append((
+                    arrow,
+                    click.style("未能找到匹配", fg="yellow"),
+                    "", "",
+                ))
+            else:
+                found.append((
+                    click.style("✓", fg="bright_green"),
+                    click.style(t.torrent.name, fg="cyan"),
+                    f"{t.torrent.size / 1000 ** 3:.2f} GB",
+                    t.torrent.hash[:7]
+                ))
+                found.append((
+                    arrow,
+                    click.style(t.info.title, fg="bright_green"),
+                    f"{t.info.file_size:.2f} GB",
+                    t.info.hash[:7],
+                ))
+        _info(
+            "重命名结果：\n" +
+            tabulate.tabulate((*failed, *found), maxcolwidths=[2, 80, 10, 10])
+        )
+        if dry_run:
+            _info("以上计划未被实际运行；若想实际重命名，请去除命令行 -d / --dry-run 选项")
+        else:
+            for torrent in pending:
+                if torrent.seed_id != 0:
+                    _debug("正在重命名 %s", torrent.info.title)
+                    self.bt.rename_torrent(torrent, torrent.info)
+
     def run(self, dry_run=False, print_scores=False):
         self.init(bt=True, byr=True, planner=True, scorer=True)
         _info("正在合并远端种子列表和本地种子列表信息")
@@ -178,7 +233,9 @@ class GlobalConfig(click.ParamType):
         local_dict = dict((t[0].seed_id, i) for i, t in enumerate(scored_local))
 
         _info("正在抓取新种子")
-        lists = [self.byr.list_torrents(0)]
+        lists = []
+        time.sleep(0.5)
+        lists.append(self.byr.list_torrents(0))
         time.sleep(0.5)
         lists.append(self.byr.list_torrents(0, sorted_by=ByrSortableField.LEECHER_COUNT))
         time.sleep(0.5)
@@ -210,20 +267,21 @@ class GlobalConfig(click.ParamType):
             f"将会下载 {len(downloadable)} 项内容（共计 {estimates.to_be_downloaded:.2f} GB）",
             tabulate.tabulate((
                 *((
-                    "删",
-                    t.torrent.name,
-                    f"-{t.torrent.size / 1000 ** 3:.2f} GB",
+                    click.style("删", fg="bright_red"),
+                    click.style(t.torrent.name, dim=True),
+                    click.style(f"-{t.torrent.size / 1000 ** 3:.2f} GB", fg="light_green"),
                 ) for t in removable),
                 *((
-                    "新",
-                    t.title,
-                    f"+{t.file_size:.2f} GB",
+                    click.style("新", fg="bright_cyan"),
+                    click.style(t.title, bold=True),
+                    click.style(f"+{t.file_size:.2f} GB", fg="yellow"),
                 ) for t in downloadable),
-            ))
+            ), maxcolwidths=[2, 80, 10])
         ))
         if print_scores:
             click.echo_via_pager(summary)
-        _info(summary)
+        else:
+            _info(summary)
         if dry_run:
             _info("以上计划未被实际运行；若想开始下载，请去除命令行 -d / --dry-run 选项")
 
@@ -321,3 +379,27 @@ class GlobalConfig(click.ParamType):
                 click.style(f"{t.live_time:.2f} 天", fg="bright_magenta"),
             ))
         click.echo_via_pager(tabulate.tabulate(table, headers=header, maxcolwidths=limits, disable_numparse=True))
+
+    def _match_against_remote(self, pending: list[LocalTorrent], remote: list[TorrentInfo]):
+        for local in pending:
+            if local.seed_id != 0:
+                continue
+            for torrent in remote:
+                if not self._match_words(torrent.title, local.torrent.name):
+                    continue
+                info = self.byr.torrent(torrent.seed_id)
+                torrent_hash = info.hash
+                time.sleep(0.5)
+                if local.torrent.hash == torrent_hash:
+                    local.seed_id = torrent.seed_id
+                    local.info = info
+                    break
+
+    @staticmethod
+    def _match_words(a: str, b: str):
+        separator = re.compile("[\\d -@\\[-`{-~]")
+        matches = (set(s.lower() for s in separator.split(a) if len(s) > 3)
+                   & set(s.lower() for s in separator.split(b) if len(s) > 3))
+        if len(matches) != 0:
+            _debug("尝试匹配 %s 与 %s：%s", a, b, matches)
+        return len(matches) != 0
