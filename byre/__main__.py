@@ -50,6 +50,13 @@ def torrent(seed: str):
     _commands.display_torrent_info(seed)
 
 
+@byr.command()
+@click.argument("user_id", type=click.INT, default=0, metavar="<北邮人用户 ID>")
+def user(user_id: int):
+    """显示当前用户信息。"""
+    _commands.display_user_info(user_id)
+
+
 os.environ["LANGUAGE"] = "zh"
 gettext.bindtextdomain("messages", localedir=os.path.join(os.path.dirname(os.path.realpath(__file__)), "locales"))
 

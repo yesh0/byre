@@ -391,7 +391,7 @@ class ByrApi:
         ranking_tag = next(
             tag for tag in page.select("#info_block font.color_bonus") if "上传排行" in tag.text
         )
-        ranking = str(ranking_tag.next).strip()
+        ranking = str(ranking_tag.next_sibling).strip()
         if ranking.isdigit():
             user.ranking = int(ranking)
 

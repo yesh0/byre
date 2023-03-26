@@ -80,20 +80,38 @@ class GlobalConfig(click.ParamType):
         self.init(byr=True)
         torrent = self.byr.torrent(seed_id)
         click.echo(tabulate.tabulate([
-            ("标题", torrent.title),
-            ("副标题", torrent.sub_title),
-            ("链接", f"https://byr.pt/details.php?id={torrent.seed_id}"),
-            ("类型", f"{torrent.cat} - {torrent.second_category}"),
-            ("促销", str(torrent.promotions)),
-            ("大小", f"{torrent.file_size:.2f} GB"),
-            ("存活时间", f"{torrent.live_time:.2f} 天"),
-            ("做种人数", torrent.seeders),
-            ("下载人数", torrent.leechers),
-            ("上传用户", f"{torrent.uploader.username}" +
-             (f" https://byr.pt/userdetails.php?id={torrent.uploader.user_id}"
+            ("标题", click.style(torrent.title, bold=True)),
+            ("副标题", click.style(torrent.sub_title, dim=True)),
+            ("链接", click.style(f"https://byr.pt/details.php?id={torrent.seed_id}", underline=True)),
+            ("类型", click.style(f"{torrent.cat} - {torrent.second_category}", fg="bright_red")),
+            ("促销", click.style(str(torrent.promotions), fg="bright_yellow")),
+            ("大小", click.style(f"{torrent.file_size:.2f} GB", fg="cyan")),
+            ("存活时间", click.style(f"{torrent.live_time:.2f} 天", fg="bright_green")),
+            ("做种人数", f"~ {torrent.seeders}"),
+            ("下载人数", click.style(f"~ {torrent.leechers}", fg="bright_magenta")),
+            ("上传用户", f"{torrent.uploader.username} " +
+             (click.style(f"<https://byr.pt/userdetails.php?id={torrent.uploader.user_id}>", underline=True)
               if torrent.uploader.user_id != 0 else "")
              ),
         ], maxcolwidths=[2, 10, 70], showindex=True))
+
+    def display_user_info(self, user_id=0):
+        self.init(byr=True)
+        user = self.byr.user_info(user_id)
+        if user.user_id != self.byr.current_user_id():
+            click.echo("查询的用户并非当前登录用户，限于权限，信息可能不准确")
+        click.echo(tabulate.tabulate([
+            ("用户名", click.style(user.username, bold=True)),
+            ("链接", click.style(f"https://byr.pt/details.php?id={user.user_id}", underline=True)),
+            ("等级", click.style(user.level, fg="bright_yellow")),
+            ("魔力值", click.style(f"{user.mana}", fg="bright_magenta")),
+            ("可连接", click.style("是", fg="bright_green") if user.connectable else click.style("否", dim=True)),
+            ("下载量", click.style(f"{user.downloaded:.2f} GB", fg="yellow")),
+            ("上传量", click.style(f"{user.uploaded:.2f} GB", fg="bright_blue")),
+            ("分享率", click.style(f"{user.ratio:.2f}", fg="cyan")),
+            ("当前活动", f"{user.seeding}↑ {user.downloading}↓"),
+            ("上传排行", click.style(f"{user.ranking}", dim=True)),
+        ], showindex=True))
 
     def _require(self, typer: typing.Callable, *args):
         config = self.config
