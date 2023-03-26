@@ -92,12 +92,17 @@ def bt_list(wants_all: bool, speed: bool):
     _commands.list_bt_torrents(wants_all, speed)
 
 
-@main.command(name="run")
+@main.group()
+def do():
+    """综合北邮人与本地的命令，主要功能所在。"""
+
+
+@do.command(name="main")
 @click.option("-d", "--dry-run", is_flag=True, help="计算种子选择结果，但不添加种子到本地")
 @click.option("-p", "--print", "print_scores", is_flag=True, help="显示新种子评分以及最终选择结果")
-def run(dry_run: bool, print_scores: bool):
-    """选择性地在本地开始北邮人种子的下载。"""
-    _commands.run(dry_run, print_scores)
+def automatic_download(dry_run: bool, print_scores: bool):
+    """自动选择北邮人种子并在本地开始下载。"""
+    _commands.download(None, dry_run, print_scores)
 
 
 @main.command(name="fix")
@@ -105,6 +110,13 @@ def run(dry_run: bool, print_scores: bool):
 def fix(dry_run: bool):
     """尝试修复 qBittorrent 中的任务名（也即给名称加上 ``[byr-北邮人ID]`` 的前缀）。"""
     _commands.fix(dry_run)
+
+
+@do.command(name="download")
+@click.argument("seed", type=click.STRING, metavar="<北邮人链接或是种子 ID>")
+def download(seed: str):
+    """下载特定种子，可能会删除其它种子腾出空间来满足下载需求。"""
+    _commands.download_one(seed)
 
 
 os.environ["LANGUAGE"] = "zh"

@@ -14,6 +14,7 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import math
 import re
 import time
 import typing
@@ -79,26 +80,23 @@ class GlobalConfig(click.ParamType):
 
     def init(self, bt=False, byr=False, planner=False, scorer=False):
         """初始化北邮人客户端等。"""
-        if byr:
+        if byr and self.byr is None:
             self.byr = ByrApi(ByrClient(*self.byr_credentials))
             time.sleep(0.5)
-        if bt:
+        if bt and self.bt is None:
             self.bt = BtClient(self.qbittorrent_url, self.download_dir)
-        if scorer:
+        if scorer and self.scorer is None:
             self.scorer = scoring.Scorer(
                 self.free_weight,
                 self.cost_recovery_days,
                 self.removal_exemption_days,
             )
-        if planner:
+        if planner and self.planner is None:
             self.planner = planning.Planner(max_total_size=self.max_total_size,
                                             max_download_size=self.max_download_size)
 
     def display_torrent_info(self, seed: str):
-        if seed.isdigit():
-            seed_id = int(seed)
-        else:
-            seed_id = ByrApi.extract_url_id(seed)
+        seed_id = self._parse_seed_id(seed)
         self.init(byr=True)
         torrent = self.byr.torrent(seed_id)
         click.echo(tabulate.tabulate([
@@ -164,6 +162,11 @@ class GlobalConfig(click.ParamType):
             return
         self._display_local_torrents(torrents, speed)
 
+    def download_one(self, seed: str):
+        seed_id = self._parse_seed_id(seed)
+        self.init(byr=True)
+        self.download(self.byr.torrent(seed_id))
+
     def fix(self, dry_run: bool):
         self.init(bt=True, byr=True)
         pending = [t for t in self.bt.list_torrents([], wants_all=True) if t.seed_id == 0]
@@ -218,37 +221,14 @@ class GlobalConfig(click.ParamType):
                     _debug("正在重命名 %s", torrent.info.title)
                     self.bt.rename_torrent(torrent, torrent.info)
 
-    def run(self, dry_run=False, print_scores=False):
+    def download(self, target: typing.Optional[TorrentInfo] = None, dry_run=False, print_scores=False):
         self.init(bt=True, byr=True, planner=True, scorer=True)
-        _info("正在合并远端种子列表和本地种子列表信息")
-        remote = self.byr.list_user_torrents()
-        local = self.bt.list_torrents(remote)
-
-        _info("正在对本地种子评分")
-        scored_local = list(filter(lambda t: t[1] >= 0, ((t, self.scorer.score_uploading(t)) for t in local)))
-        scored_local.sort(key=lambda t: t[1])
-        local_dict = dict((t[0].seed_id, i) for i, t in enumerate(scored_local))
-
-        _info("正在抓取新种子")
-        lists = []
-        time.sleep(0.5)
-        lists.append(self.byr.list_torrents(0))
-        time.sleep(0.5)
-        lists.append(self.byr.list_torrents(0, sorted_by=ByrSortableField.LEECHER_COUNT))
-        time.sleep(0.5)
-        lists.append(self.byr.list_torrents(0, promotion=TorrentPromotion.FREE))
-        time.sleep(0.5)
-        fetched = []
-        _debug("正在将已下载的种子从新种子列表中除去")
-        for torrent in self._merge_torrent_list(*lists):
-            if torrent.seed_id in local_dict:
-                scored_local[local_dict[torrent.seed_id]][0].info = torrent
-            else:
-                fetched.append(torrent)
-
-        _info("正在对新种子评分")
-        candidates = [(t, self.scorer.score_downloading(t)) for t in fetched]
-        candidates.sort(key=lambda t: t[1], reverse=True)
+        local, scored_local, local_dict = self._gather_local_info()
+        if target is None:
+            candidates = self._fetch_candidates(scored_local, local_dict)
+        else:
+            _info("准备下载指定种子，将种子的价值设为无穷")
+            candidates = [(target, math.inf)]
         if print_scores:
             self._display_scored_torrents(candidates[:10])
 
@@ -400,3 +380,45 @@ class GlobalConfig(click.ParamType):
         if len(matches) != 0:
             _debug("尝试匹配 %s 与 %s：%s", a, b, matches)
         return len(matches) != 0
+
+    @staticmethod
+    def _parse_seed_id(s: str):
+        if s.isdigit():
+            return int(s)
+        else:
+            return ByrApi.extract_url_id(s)
+
+    def _gather_local_info(self):
+        _info("正在合并远端种子列表和本地种子列表信息")
+        remote = self.byr.list_user_torrents()
+        local = self.bt.list_torrents(remote)
+
+        _info("正在对本地种子评分")
+        scored_local = list(filter(lambda t: t[1] >= 0, ((t, self.scorer.score_uploading(t)) for t in local)))
+        scored_local.sort(key=lambda t: t[1])
+        local_dict = dict((t[0].seed_id, i) for i, t in enumerate(scored_local))
+
+        return local, scored_local, local_dict
+
+    def _fetch_candidates(self, scored_local: list[tuple[LocalTorrent, float]], local_dict: dict[int, int]):
+        _info("正在抓取新种子")
+        lists = []
+        time.sleep(0.5)
+        lists.append(self.byr.list_torrents(0))
+        time.sleep(0.5)
+        lists.append(self.byr.list_torrents(0, sorted_by=ByrSortableField.LEECHER_COUNT))
+        time.sleep(0.5)
+        lists.append(self.byr.list_torrents(0, promotion=TorrentPromotion.FREE))
+        time.sleep(0.5)
+        fetched = []
+        _debug("正在将已下载的种子从新种子列表中除去")
+        for torrent in self._merge_torrent_list(*lists):
+            if torrent.seed_id in local_dict:
+                scored_local[local_dict[torrent.seed_id]][0].info = torrent
+            else:
+                fetched.append(torrent)
+
+        _info("正在对新种子评分")
+        candidates = [(t, self.scorer.score_downloading(t)) for t in fetched]
+        candidates.sort(key=lambda t: t[1], reverse=True)
+        return candidates
