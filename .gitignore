@@ -161,3 +161,5 @@ cython_debug/
 
 # byre
 byr.cookies
+byre.toml
+!byre/locales/zh/LC_MESSAGES/messages.mo

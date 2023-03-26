@@ -18,4 +18,3 @@
 from byre.api import *
 from byre.bt import *
 from byre.data import *
-from byre.scoring import *

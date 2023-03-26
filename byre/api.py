@@ -20,6 +20,7 @@ import enum
 import logging
 import os
 import pickle
+import re
 import time
 import typing
 from urllib.parse import parse_qs, urlparse
@@ -232,7 +233,7 @@ class ByrApi:
             return self._user_id
         page = self.client.get_soup("")
         # noinspection PyTypeChecker
-        user_id = self._extract_url_id(page.select("a[class=User_Name]")[0].attrs["href"])
+        user_id = self.extract_url_id(page.select("a[class=User_Name]")[0].attrs["href"])
         _debug("提取的用户 ID 为：%d", user_id)
         self._user_id = user_id
         return user_id
@@ -268,7 +269,7 @@ class ByrApi:
         """从 torrents.php 页面提取信息。"""
         order = "desc" if desc else "asc"
         page = self.client.get_soup(
-            f"torrents.php?page={page}&spstate={promotion.value[1]}"
+            f"torrents.php?page={page}&spstate={promotion.get_int()}"
             f"&pktype={tag.value}&sort={sorted_by.value}&type={order}"
         )
         return self._extract_torrent_table(page.select("table.torrents > form > tr")[1:])
@@ -304,8 +305,54 @@ class ByrApi:
         sec_type = page.select_one("span#sec_type")
         return sec_type.text if sec_type is not None else "其它"
 
+    def torrent(self, seed_id: int):
+        """获取种子详情。"""
+        page = self.client.get_soup(f"details.php?id={seed_id}&hit=1")
+        title_tag = page.find("h1", recursive=True)
+        if title_tag is None:
+            raise ValueError("种子不存在")
+        title = next(iter(title_tag.children)).text.strip()
+        subtitle = page.select_one("#subtitle").get_text(strip=True)
+        cat = page.select_one("span#type").text.strip()
+        sec_cat = page.select_one("span#sec_type").text.strip()
+        size = utils.convert_byr_size(page.select_one("span#type").parent.find(text=re.compile("\\d")).text)
+        promotions = self._extract_promotion_info(title_tag)
+        tag = self._extract_tag(title_tag)
+        uploaded_at = datetime.datetime.fromisoformat(page.select_one("span[title]").attrs["title"])
+        live_time = (datetime.datetime.now() - uploaded_at).total_seconds() / (24 * 60 * 60)
+
+        peers = page.select_one("div#peercount").get_text(strip=True)
+        seeder_re = re.compile("(\\d+)个做种者")
+        leecher_re = re.compile("(\\d+)个下载者")
+        seeders = utils.int_or(seeder_re.search(peers).group(1))
+        leechers = utils.int_or(leecher_re.search(peers).group(1))
+        finished = utils.int_or(page.select_one("a[href^=viewsnatches] > b").text)
+
+        user = self._extract_user_from_a(page.select_one("h1 + table tr"))
+
+        return TorrentInfo(
+            title=title,
+            sub_title=subtitle,
+            seed_id=seed_id,
+            cat=cat,
+            category=TorrentInfo.convert_byr_category(cat),
+            second_category=sec_cat,
+            promotions=promotions,
+            tag=tag,
+            file_size=size,
+            live_time=live_time,
+            seeders=seeders,
+            leechers=leechers,
+            finished=finished,
+            comments=0,
+            uploader=user,
+            uploaded=0.,
+            downloaded=0.,
+            ratio=0.,
+        )
+
     @staticmethod
-    def _extract_url_id(href: str):
+    def extract_url_id(href: str):
         return int(parse_qs(urlparse(href).query)["id"][0])
 
     @staticmethod
@@ -394,22 +441,16 @@ class ByrApi:
             downloaded = utils.convert_byr_size(
                 cells[downloaded_cell].get_text(strip=True)) if downloaded_cell is not None else 0
             ratio = utils.float_or(cells[ratio_cell].get_text(strip=True)) if ratio_cell is not None else 0.
-            user = ByrUser()
             if uploader_cell is not None:
-                user_cell = cells[uploader_cell].select_one("a[href^=userdetails]")
-                if user_cell is not None:
-                    user.user_id, user.username = (
-                        ByrApi._extract_url_id(user_cell.attrs["href"]),
-                        user_cell.get_text(strip=True),
-                    )
-                else:
-                    user.username = "匿名"
+                user = self._extract_user_from_a(cells[uploader_cell])
+            else:
+                user = ByrUser()
 
             # 标题需要一点特殊处理。
             title_cell = cells[1]
             torrent_link = title_cell.select_one("a[href^=details]")
             title = torrent_link.attrs["title"]
-            byr_id = ByrApi._extract_url_id(torrent_link.attrs["href"])
+            byr_id = ByrApi.extract_url_id(torrent_link.attrs["href"])
             subtitle_newline = torrent_link.find_parent("td").find("br")
             if subtitle_newline is not None:
                 subtitle_node = subtitle_newline.next_sibling
@@ -496,3 +537,16 @@ class ByrApi:
             if title_cell.select_one(selector) is not None:
                 return tag
         return TorrentTag.ANY
+
+    @staticmethod
+    def _extract_user_from_a(cell: bs4.Tag):
+        user = ByrUser()
+        user_cell = cell.select_one("a[href^=userdetails]")
+        if user_cell is not None:
+            user.user_id, user.username = (
+                ByrApi.extract_url_id(user_cell.attrs["href"]),
+                user_cell.get_text(strip=True),
+            )
+        else:
+            user.username = "匿名"
+        return user

@@ -103,7 +103,22 @@ class TorrentPromotion(enum.Enum):
     def __contains__(self, item):
         if self == TorrentPromotion.ANY:
             return True
-        return item in self.value[0]
+        return item in self.get_promotions()
+
+    def get_promotions(self) -> typing.Iterable[str]:
+        return self.value[0]
+
+    def get_int(self) -> int:
+        return self.value[1]
+
+    def __str__(self):
+        texts = {
+            PROMOTION_FREE: "免费",
+            PROMOTION_TWO_UP: "2x上传",
+            PROMOTION_HALF_DOWN: "50%下载",
+            PROMOTION_THIRTY_DOWN: "30%下载",
+        }
+        return ", ".join(texts[p] for p in self.get_promotions()) or "无"
 
 
 class TorrentTag(enum.Enum):
