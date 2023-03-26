@@ -22,7 +22,7 @@ import tabulate
 import tomli
 
 from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, ByrSortableField, UserTorrentKind, \
-    LocalTorrent, scoring
+    LocalTorrent, planning, scoring
 
 _logger = logging.getLogger("byre.commands")
 _debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
@@ -49,8 +49,13 @@ class GlobalConfig(click.ParamType):
 
     removal_exemption_days = 0.
 
+    max_total_size = 0.
+
+    max_download_size = 0.
+
     byr: ByrApi = None
     bt: BtClient = None
+    planner: planning.Planner = None
     scorer: scoring.Scorer = None
 
     def convert(self, value: str, param, ctx):
@@ -70,9 +75,11 @@ class GlobalConfig(click.ParamType):
         self.free_weight = self._optional(float, 1., "scoring", "free_weight")
         self.cost_recovery_days = self._optional(float, 7., "scoring", "cost_recovery_days")
         self.removal_exemption_days = self._optional(float, 15., "scoring", "removal_exemption_days")
+        self.max_total_size = self._require(float, "planning", "max_total_size")
+        self.max_download_size = self._optional(float, self.max_total_size / 50, "planning", "max_download_size")
         return self
 
-    def init(self, bt=False, byr=False, scorer=False):
+    def init(self, bt=False, byr=False, planner=False, scorer=False):
         """初始化北邮人客户端等。"""
         if byr:
             self.byr = ByrApi(ByrClient(*self.byr_credentials))
@@ -85,6 +92,9 @@ class GlobalConfig(click.ParamType):
                 self.cost_recovery_days,
                 self.removal_exemption_days,
             )
+        if planner:
+            self.planner = planning.Planner(max_total_size=self.max_total_size,
+                                            max_download_size=self.max_download_size)
 
     def display_torrent_info(self, seed: str):
         if seed.isdigit():
@@ -157,7 +167,7 @@ class GlobalConfig(click.ParamType):
         self._display_local_torrents(torrents, speed)
 
     def run(self, dry_run=False, print_scores=False):
-        self.init(bt=True, byr=True, scorer=True)
+        self.init(bt=True, byr=True, planner=True, scorer=True)
         _info("正在合并远端种子列表和本地种子列表信息")
         remote = self.byr.list_user_torrents()
         local = self.bt.list_torrents(remote)
@@ -189,7 +199,33 @@ class GlobalConfig(click.ParamType):
             self._display_scored_torrents(candidates[:10])
 
         _info("正在计算最终种子选择")
-        self._plan(scored_local, candidates)
+        removable, downloadable = self.planner.plan(local, scored_local, candidates)
+        estimates = self.planner.estimate(local, removable, downloadable)
+        summary = "\n".join((
+            "更改总结：",
+            f"最大允许空间占用 {self.max_total_size:.2f} GB，本次最大下载量为 {self.max_download_size:.2f} GB",
+            f"目前总空间占用 {estimates.before:.2f} GB，"
+            f"最后预期总占用 {estimates.after:.2f} GB",
+            f"将会删除 {len(removable)} 项内容（共计 {estimates.to_be_deleted:.2f} GB），"
+            f"将会下载 {len(downloadable)} 项内容（共计 {estimates.to_be_downloaded:.2f} GB）",
+            tabulate.tabulate((
+                *((
+                    "删",
+                    t.torrent.name,
+                    f"-{t.torrent.size / 1000 ** 3:.2f} GB",
+                ) for t in removable),
+                *((
+                    "新",
+                    t.title,
+                    f"+{t.file_size:.2f} GB",
+                ) for t in downloadable),
+            ))
+        ))
+        if print_scores:
+            click.echo_via_pager(summary)
+        _info(summary)
+        if dry_run:
+            _info("以上计划未被实际运行；若想开始下载，请去除命令行 -d / --dry-run 选项")
 
     def _require(self, typer: typing.Callable, *args, password=False):
         config = self.config
@@ -285,8 +321,3 @@ class GlobalConfig(click.ParamType):
                 click.style(f"{t.live_time:.2f} 天", fg="bright_magenta"),
             ))
         click.echo_via_pager(tabulate.tabulate(table, headers=header, maxcolwidths=limits, disable_numparse=True))
-
-    @staticmethod
-    def _plan(local: list[tuple[LocalTorrent, float]], remote: list[tuple[TorrentInfo, float]]):
-        """贪心选取预期分享率最大的新种子，替换预期分享率最低的已有种子。"""
-        pass
