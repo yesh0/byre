@@ -416,11 +416,12 @@ class GlobalConfig(click.ParamType):
         _info("正在合并远端种子列表和本地种子列表信息")
         remote = self.byr.list_user_torrents()
         local = self.bt.list_torrents(remote)
+        local_dict = dict((t.seed_id, -1) for t in local)
 
         _info("正在对本地种子评分")
         scored_local = list(filter(lambda t: t[1] >= 0, ((t, self.scorer.score_uploading(t)) for t in local)))
         scored_local.sort(key=lambda t: t[1])
-        local_dict = dict((t[0].seed_id, i) for i, t in enumerate(scored_local))
+        local_dict.update((t[0].seed_id, i) for i, t in enumerate(scored_local))
 
         return local, scored_local, local_dict
 
@@ -438,7 +439,9 @@ class GlobalConfig(click.ParamType):
         _debug("正在将已下载的种子从新种子列表中除去")
         for torrent in self._merge_torrent_list(*lists):
             if torrent.seed_id in local_dict:
-                scored_local[local_dict[torrent.seed_id]][0].info = torrent
+                i = local_dict[torrent.seed_id]
+                if i != -1:
+                    scored_local[i][0].info = torrent
             else:
                 fetched.append(torrent)
 
