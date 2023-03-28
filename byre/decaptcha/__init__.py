@@ -15,8 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os.path
-from pickle import load
+import importlib.resources
+from pickle import loads
 
 import sklearn
 from PIL import Image
@@ -108,22 +108,16 @@ class DeCaptcha:
         text = "".join(result)
         return text
 
-    def load_model(self, filename: str) -> None:
-        if not isinstance(filename, str):
-            raise TypeError("filename must be a string!")
-        with open(filename, "rb") as fid:
-            self.__clf = load(fid)
-            if not isinstance(self.__clf, svm.NuSVC):
-                raise TypeError("model file messed up!")
-            self.__is_active = True
+    def load_model(self) -> None:
+        self.__clf = loads(_model_bytes())
+        if not isinstance(self.__clf, svm.NuSVC):
+            raise TypeError("model file messed up!")
+        self.__is_active = True
 
 
-def model_file() -> str:
+def _model_bytes() -> bytes:
     version = "1.2.2"
     if version != sklearn.__version__:
         import logging
         logging.getLogger("byre.decaptcha").warning("当前 sklearn 版本与验证码模型训练版本有差别")
-    return os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        f"captcha_classifier.{version}.pkl",
-    )
+    return importlib.resources.files(__package__).joinpath(f"captcha_classifier.{version}.pkl").read_bytes()

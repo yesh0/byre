@@ -150,7 +150,7 @@ class ByrClient:
         if self._decaptcha is None:
             # 重用对象，避免重复创建。
             self._decaptcha = decaptcha.DeCaptcha()
-            self._decaptcha.load_model(decaptcha.model_file())
+            self._decaptcha.load_model()
 
         self._session.cookies.clear()
 

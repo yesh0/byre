@@ -18,15 +18,16 @@ import unittest
 
 from PIL import Image
 
-from byre.decaptcha import DeCaptcha, model_file
+from byre.decaptcha import DeCaptcha
 
 
 class DecaptchaTestCase(unittest.TestCase):
     def test_decaptcha(self):
         print(os.getcwd())
         dc = DeCaptcha()
-        dc.load_model(model_file())
+        dc.load_model()
         captcha_list = []
+        # tests 目录下的其实不太算包，所以暂时不考虑用 importlib。
         folder = os.path.join(os.path.dirname(os.path.realpath(__file__)), "decap", "captcha")
         with open(os.path.join(folder, "captcha_text")) as f:
             for i in range(100):
