@@ -24,7 +24,7 @@ import tabulate
 import tomli
 
 from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, ByrSortableField, UserTorrentKind, \
-    LocalTorrent, planning, scoring, PROMOTION_FREE
+    LocalTorrent, planning, scoring, PROMOTION_FREE, CATEGORIES
 
 _logger = logging.getLogger("byre.commands")
 _debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
@@ -94,6 +94,8 @@ class GlobalConfig(click.ParamType):
             time.sleep(0.5)
         if bt and self.bt is None:
             self.bt = BtClient(self.qbittorrent_url, self.download_dir)
+            self.bt.init_tags()
+            self.bt.init_categories(CATEGORIES.values())
         if scorer and self.scorer is None:
             self.scorer = scoring.Scorer(
                 self.free_weight,

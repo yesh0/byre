@@ -117,6 +117,8 @@ class Scorer:
             return -1.
         if torrent.torrent.completion_on + (self.removal_exemption_days * 24 * 60 * 60) > time.time():
             return -1.
+        if "keep" in torrent.torrent.tags:
+            return -1.
         info = torrent.estimate_info()
         if info.seeders <= 1:
             return -1.

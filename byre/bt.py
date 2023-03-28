@@ -67,17 +67,19 @@ class BtClient:
         self.client.torrents_remove_categories(removable)
 
     def init_tags(self, reset=False) -> None:
-        """创建（或删除）“byr”标签。"""
-        if "byr" not in self.client.torrents_tags():
-            if not reset:
-                self.client.torrents_create_tags(["byr"])
-                _debug("创建了“byr”标签")
-                return
-        elif reset:
-            self.client.torrents_delete_tags(["byr"])
-            _debug("删除了“byr”标签")
-            return
-        _debug("无需创建/删除标签")
+        """创建（或删除）“byr”和“keep”标签。"""
+        tags = self.client.torrents_tags()
+        for tag in ["byr", "keep"]:
+            if tag not in tags:
+                if not reset:
+                    self.client.torrents_create_tags([tag])
+                    _debug("创建了“%s”标签", tag)
+                    continue
+            elif reset:
+                self.client.torrents_delete_tags([tag])
+                _debug("删除了“%s”标签", tag)
+                continue
+            _debug("无需创建/删除“%s”", tag)
 
     def add_torrent(self, torrent: bytes, info: TorrentInfo, paused=False) -> None:
         """添加种子并设置对应的类别和标签。"""
