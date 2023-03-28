@@ -15,6 +15,8 @@
 
 import logging
 import math
+import os.path
+import pathlib
 import re
 import time
 import typing
@@ -61,6 +63,14 @@ class GlobalConfig(click.ParamType):
     scorer: scoring.Scorer = None
 
     def convert(self, value: str, param, ctx):
+        if not value:
+            for f in ["byre.toml", str(pathlib.Path.home().joinpath(".config", "byre", "byre.toml")), "/etc/byre.toml",
+                      "/etc/byre/byre.toml"]:
+                if os.path.exists(f):
+                    value = f
+                    break
+            else:
+                raise FileNotFoundError("找不到配置文件“byre.toml”，请使用 -c / --config 选项")
         with open(value, "rb") as file:
             self.config = tomli.load(file)
 

@@ -28,7 +28,7 @@ _commands: typing.Optional[GlobalConfig] = None
 
 
 @click.group()
-@click.option("-c", "--config", type=GlobalConfig(), default="byre.toml", help="TOML 格式配置文件")
+@click.option("-c", "--config", type=GlobalConfig(), default="", help="TOML 格式配置文件")
 @click.option("-v", "--verbose", is_flag=True, help="输出详细信息")
 def main(config: GlobalConfig, verbose: bool):
     """
