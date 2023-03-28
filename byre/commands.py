@@ -24,7 +24,7 @@ import tabulate
 import tomli
 
 from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, ByrSortableField, UserTorrentKind, \
-    LocalTorrent, planning, scoring
+    LocalTorrent, planning, scoring, PROMOTION_FREE
 
 _logger = logging.getLogger("byre.commands")
 _debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
@@ -230,11 +230,11 @@ class GlobalConfig(click.ParamType):
                     _debug("正在重命名 %s", torrent.info.title)
                     self.bt.rename_torrent(torrent, torrent.info)
 
-    def download(self, target: typing.Optional[TorrentInfo] = None, dry_run=False, print_scores=False):
+    def download(self, target: typing.Optional[TorrentInfo] = None, dry_run=False, print_scores=False, free_only=False):
         self.init(bt=True, byr=True, planner=True, scorer=True)
         local, scored_local, local_dict = self._gather_local_info()
         if target is None:
-            candidates = self._fetch_candidates(scored_local, local_dict)
+            candidates = self._fetch_candidates(scored_local, local_dict, free_only=free_only)
         else:
             _info("准备下载指定种子，将种子的价值设为无穷，去除单次下载量上限")
             candidates = [(target, math.inf)]
@@ -425,7 +425,8 @@ class GlobalConfig(click.ParamType):
 
         return local, scored_local, local_dict
 
-    def _fetch_candidates(self, scored_local: list[tuple[LocalTorrent, float]], local_dict: dict[int, int]):
+    def _fetch_candidates(self, scored_local: list[tuple[LocalTorrent, float]], local_dict: dict[int, int],
+                          free_only: bool):
         _info("正在抓取新种子")
         lists = []
         time.sleep(0.5)
@@ -444,6 +445,10 @@ class GlobalConfig(click.ParamType):
                     scored_local[i][0].info = torrent
             else:
                 fetched.append(torrent)
+
+        if free_only:
+            _debug("正在筛选免费促销的种子")
+            fetched = [t for t in fetched if PROMOTION_FREE in t.promotions]
 
         _info("正在对新种子评分")
         candidates = [(t, self.scorer.score_downloading(t)) for t in fetched]

@@ -111,9 +111,10 @@ def do():
 @do.command(name="main")
 @click.option("-d", "--dry-run", is_flag=True, help="计算种子选择结果，但不添加种子到本地")
 @click.option("-p", "--print", "print_scores", is_flag=True, help="显示新种子评分以及最终选择结果")
-def automatic_download(dry_run: bool, print_scores: bool):
+@click.option("-f", "--free-only", is_flag=True, help="只会下载免费促销的种子")
+def automatic_download(dry_run: bool, print_scores: bool, free_only: bool):
     """自动选择北邮人种子并在本地开始下载。"""
-    _commands.download(None, dry_run, print_scores)
+    _commands.download(None, dry_run, print_scores, free_only)
 
 
 @main.command(name="fix")
