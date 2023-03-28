@@ -39,7 +39,7 @@ def convert_byr_size(size: str) -> float:
         return 0.
 
 
-def int_or(s: str, default=0):
+def int_or(s: str, default=0) -> int:
     """安全地将字符串解析成 int 值。"""
     try:
         return int(s)
@@ -47,7 +47,7 @@ def int_or(s: str, default=0):
         return default
 
 
-def float_or(s: str, default=0.):
+def float_or(s: str, default=0.) -> float:
     """安全地将字符串解析成 float 值。"""
     try:
         return float(s)
@@ -55,7 +55,7 @@ def float_or(s: str, default=0.):
         return default
 
 
-def colorize_logger(name="byre"):
+def colorize_logger(name="byre") -> None:
     class ClickEchoStream(io.StringIO):
         def write(self, s: str) -> int:
             click.echo(s, nl=False, err=True)

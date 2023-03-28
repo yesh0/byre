@@ -24,7 +24,7 @@ import click
 from byre import TorrentPromotion, ByrSortableField, UserTorrentKind, utils
 from byre.commands import GlobalConfig
 
-_commands: typing.Union[GlobalConfig, None] = None
+_commands: typing.Optional[GlobalConfig] = None
 
 
 @click.group()

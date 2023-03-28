@@ -54,9 +54,9 @@ class ByrClient:
             self,
             username: str,
             password: str,
-            cookie_file="byr.cookies",
-            retry_delay=1.,
-            proxies: typing.Union[dict[str, str], None] = None
+            cookie_file: str = "byr.cookies",
+            retry_delay: float = 1.,
+            proxies: typing.Optional[dict[str, str]] = None
     ) -> None:
         self.username = username
         self.password = password
@@ -75,7 +75,7 @@ class ByrClient:
             ]),
         })
 
-    def login(self, cache=True):
+    def login(self, cache: bool = True) -> None:
         """登录，获取 Cookies。"""
         if cache and self._update_session_from_cache():
             _info("成功从缓存中获取会话")
@@ -85,7 +85,7 @@ class ByrClient:
         _info("成功登录")
         self._cache_session()
 
-    def get(self, path: str, retries=3, allow_redirects=False):
+    def get(self, path: str, retries: int = 3, allow_redirects: bool = False) -> requests.Response:
         """使用当前会话发起请求，返回 `requests.Response`。"""
         _debug("正在请求 %s", path or "/")
         for i in range(retries):
@@ -98,7 +98,7 @@ class ByrClient:
                 time.sleep(self._retry_delay)
         raise ConnectionError(f"所有 {retries} 次请求均失败")
 
-    def get_soup(self, path: str, retries=3):
+    def get_soup(self, path: str, retries: int = 3) -> bs4.BeautifulSoup:
         """使用当前会话发起请求，返回 `bs4.BeautifulSoup`。"""
         res = self.get(path, retries=retries)
         return bs4.BeautifulSoup(res.content, "html.parser")
@@ -111,11 +111,11 @@ class ByrClient:
         except ConnectionError:
             return False
 
-    def close(self):
+    def close(self) -> None:
         """关闭 `requests.Session` 资源。"""
         self._session.close()
 
-    def _update_session_from_cache(self):
+    def _update_session_from_cache(self) -> bool:
         """从缓存文件里获取 Cookies，如果登录信息有效则返回 `True`。"""
         if os.path.exists(self._cookie_file):
             with open(self._cookie_file, "rb") as file:
@@ -141,7 +141,7 @@ class ByrClient:
     def _get_url(path: str) -> str:
         return "https://byr.pt/" + path
 
-    def _authorize_session(self):
+    def _authorize_session(self) -> None:
         """进行登录请求，更新 `self._session`。"""
         # 懒加载验证码（模型以及大块的依赖）。
         import io
@@ -178,7 +178,7 @@ class ByrClient:
 
         raise ConnectionError("登录请求失败，因为北邮人有封 IP 机制，请谨慎使用")
 
-    def _cache_session(self):
+    def _cache_session(self) -> None:
         """保存 `self._session.cookies`。"""
         cookies = {
             "username": self.username,
@@ -223,11 +223,11 @@ class ByrApi:
         if not client.is_logged_in():
             client.login()
 
-    def close(self):
+    def close(self) -> None:
         """关闭所用的资源。"""
         self.client.close()
 
-    def current_user_id(self):
+    def current_user_id(self) -> int:
         """获取当前用户 ID。"""
         if self._user_id != 0:
             return self._user_id
@@ -238,7 +238,7 @@ class ByrApi:
         self._user_id = user_id
         return user_id
 
-    def user_info(self, user_id=0):
+    def user_info(self, user_id: int = 0) -> ByrUser:
         """获取用户信息。"""
         if user_id == 0:
             user_id = self.current_user_id()
@@ -264,8 +264,10 @@ class ByrApi:
             self._extract_info_bar(user, page)
         return user
 
-    def list_torrents(self, page=0, promotion=TorrentPromotion.ANY, tag=TorrentTag.ANY, sorted_by=ByrSortableField.ID,
-                      desc=True):
+    def list_torrents(self, page: int = 0, promotion: TorrentPromotion = TorrentPromotion.ANY,
+                      tag: TorrentTag = TorrentTag.ANY,
+                      sorted_by: ByrSortableField = ByrSortableField.ID,
+                      desc: bool = True) -> list[TorrentInfo]:
         """从 torrents.php 页面提取信息。"""
         order = "desc" if desc else "asc"
         page = self.client.get_soup(
@@ -274,14 +276,14 @@ class ByrApi:
         )
         return self._extract_torrent_table(page.select("table.torrents > form > tr")[1:])
 
-    def list_user_torrents(self, kind=UserTorrentKind.SEEDING):
+    def list_user_torrents(self, kind: UserTorrentKind = UserTorrentKind.SEEDING) -> list[TorrentInfo]:
         """从 Ajax API 获取用户正在上传的种子列表。"""
         # noinspection SpellCheckingInspection
         page = self.client.get_soup(
             f"getusertorrentlistajax.php?userid={self.current_user_id()}&type={kind.name.lower()}")
         if kind != UserTorrentKind.SEEDING:
             # 其它表格基本只有类型和标题两列信息有用
-            return self._extract_torrent_table(page.select("table > tr")[1:], *([None]*10))
+            return self._extract_torrent_table(page.select("table > tr")[1:], *([None] * 10))
         # 上传种子表格的格式：
         #   0     1     2      3       4       5       6       7
         # 类型、题目、大小、做种数、下载数、上传量、下载量、分享率
@@ -299,11 +301,11 @@ class ByrApi:
             ratio_cell=7,
         )
 
-    def download_torrent(self, seed_id: int):
+    def download_torrent(self, seed_id: int) -> bytes:
         res = self.client.get(f"download.php?id={seed_id}")
         return res.content
 
-    def torrent(self, seed_id: int):
+    def torrent(self, seed_id: int) -> TorrentInfo:
         """获取种子详情。"""
         page = self.client.get_soup(f"details.php?id={seed_id}&hit=1")
         title_tag = page.find("h1", recursive=True)
@@ -358,11 +360,11 @@ class ByrApi:
         )
 
     @staticmethod
-    def extract_url_id(href: str):
+    def extract_url_id(href: str) -> int:
         return int(parse_qs(urlparse(href).query)["id"][0])
 
     @staticmethod
-    def _extract_user_info(user: ByrUser, info: dict[str, bs4.Tag]):
+    def _extract_user_info(user: ByrUser, info: dict[str, bs4.Tag]) -> None:
         """从 `userdetails.php` 的最大的那个表格提取用户信息。"""
         if _LEVEL in info:
             level_img = info[_LEVEL].select_one("img")
@@ -392,7 +394,7 @@ class ByrApi:
                     user.downloaded = utils.convert_byr_size(value)
 
     @staticmethod
-    def _extract_info_bar(user: ByrUser, page: bs4.Tag):
+    def _extract_info_bar(user: ByrUser, page: bs4.Tag) -> None:
         """从页面的用户信息栏提取一些信息（就不重复提取 `_extract_user_info` 能提取的了）。"""
         ranking_tag = next(
             tag for tag in page.select("#info_block font.color_bonus") if "上传排行" in tag.text
@@ -425,7 +427,7 @@ class ByrApi:
                                uploaded_cell: typing.Optional[int] = None,
                                downloaded_cell: typing.Optional[int] = None,
                                ratio_cell: typing.Optional[int] = None,
-                               details=False):
+                               details: bool = False) -> list[TorrentInfo]:
         """
         从 torrents.php 页面的种子表格中提取信息。
 
@@ -555,7 +557,7 @@ class ByrApi:
         return TorrentTag.ANY
 
     @staticmethod
-    def _extract_user_from_a(cell: bs4.Tag):
+    def _extract_user_from_a(cell: bs4.Tag) -> ByrUser:
         user = ByrUser()
         user_cell = cell.select_one("a[href^=userdetails]")
         if user_cell is not None:

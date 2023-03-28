@@ -42,7 +42,7 @@ class Planner:
              local_torrents: list[LocalTorrent],
              local: list[tuple[LocalTorrent, float]],
              remote: list[tuple[TorrentInfo, float]],
-             ):
+             ) -> tuple[list[LocalTorrent], list[TorrentInfo]]:
         remaining = self.max_total_size - self._compute_used_space(local_torrents)
         i = 0
         removable, downloadable = [], []
@@ -73,7 +73,7 @@ class Planner:
         return removable, downloadable
 
     def estimate(self, local_torrents: list[LocalTorrent], removable: list[LocalTorrent],
-                 downloadable: list[TorrentInfo]):
+                 downloadable: list[TorrentInfo]) -> SpaceChange:
         used = self._compute_used_space(local_torrents)
         deleted = sum(t.torrent.size for t in removable) / 1000 ** 3
         downloaded = sum(t.file_size for t in downloadable)
@@ -85,5 +85,5 @@ class Planner:
         )
 
     @staticmethod
-    def _compute_used_space(local_torrents: list[LocalTorrent]):
+    def _compute_used_space(local_torrents: list[LocalTorrent]) -> float:
         return sum(t.torrent.size for t in local_torrents) / 1000 ** 3

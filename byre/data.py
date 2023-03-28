@@ -100,7 +100,7 @@ class TorrentPromotion(enum.Enum):
     HALF_OFF_X2 = (PROMOTION_HALF_DOWN, PROMOTION_TWO_UP), 6
     THIRTY_PERCENT = (PROMOTION_THIRTY_DOWN,), 7
 
-    def __contains__(self, item):
+    def __contains__(self, item) -> bool:
         if self == TorrentPromotion.ANY:
             return True
         return item in self.get_promotions()
@@ -111,7 +111,7 @@ class TorrentPromotion(enum.Enum):
     def get_int(self) -> int:
         return self.value[1]
 
-    def __str__(self):
+    def __str__(self) -> str:
         texts = {
             PROMOTION_FREE: "免费",
             PROMOTION_TWO_UP: "2x上传",
@@ -208,7 +208,7 @@ class TorrentInfo:
     """种子的 hash 值。"""
 
     @staticmethod
-    def convert_byr_category(cat: str):
+    def convert_byr_category(cat: str) -> str:
         return CATEGORIES.get(cat, "Others")
 
 
@@ -220,10 +220,10 @@ class LocalTorrent:
     seed_id: int
     """对应的北邮人种子 ID。"""
 
-    info: typing.Union[TorrentInfo, None]
+    info: typing.Optional[TorrentInfo]
     """种子在北邮人上的信息。"""
 
-    def estimate_info(self):
+    def estimate_info(self) -> TorrentInfo:
         """从本地信息估计种子信息。"""
         if self.info is not None:
             return self.info

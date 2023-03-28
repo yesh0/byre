@@ -24,14 +24,14 @@ from sklearn import svm
 
 
 class DeCaptcha:
-    def __init__(self, length=6):
+    def __init__(self, length: int = 6) -> None:
         self.__clf = svm.NuSVC()
         self.__length = length
         self.__is_active = False
         self.__BIN_TABLE = [0] * 140 + [1] * 116
 
     def __points_collect(self, bin_image: Image.Image, visited: list[list[int]], x: int, y: int,
-                         points: list[tuple[int, int]]):
+                         points: list[tuple[int, int]]) -> None:
         for step_x in range(-1, 2):
             for step_y in range(-1, 2):
                 i = x + step_x
@@ -42,7 +42,7 @@ class DeCaptcha:
                         points.append((i, j))
                         self.__points_collect(bin_image, visited, i, j, points)
 
-    def __remove_noise_point(self, bin_image: Image.Image):
+    def __remove_noise_point(self, bin_image: Image.Image) -> None:
         width = bin_image.width
         height = bin_image.height
         visited = [[0 for _ in range(height)] for _ in range(width)]
@@ -61,7 +61,7 @@ class DeCaptcha:
                         for point in points:
                             bin_image.putpixel(point, 1)
 
-    def __get_char_images(self, image: Image.Image):
+    def __get_char_images(self, image: Image.Image) -> list[Image.Image]:
         char_images = []
         for i in range(self.__length):
             x = 25 + i * (8 + 10)
@@ -70,14 +70,14 @@ class DeCaptcha:
             char_images.append(child_img)
         return char_images
 
-    def __preprocess(self, image: Image.Image):
+    def __preprocess(self, image: Image.Image) -> Image.Image:
         gray_image = image.convert("L")
         bin_image = gray_image.point(self.__BIN_TABLE, "1")
         self.__remove_noise_point(bin_image)
         return bin_image
 
     @staticmethod
-    def __get_feature(image: Image.Image):
+    def __get_feature(image: Image.Image) -> list[int]:
         width, height = image.size
         pixel_cnt_list = []
         for y in range(height):
@@ -94,7 +94,7 @@ class DeCaptcha:
             pixel_cnt_list.append(pix_cnt_y)
         return pixel_cnt_list
 
-    def decode(self, image: Image.Image):
+    def decode(self, image: Image.Image) -> str:
         if not isinstance(image, Image.Image):
             raise TypeError("image must be instance of Image.Image in PIL!")
         if not self.__is_active:
@@ -108,7 +108,7 @@ class DeCaptcha:
         text = "".join(result)
         return text
 
-    def load_model(self, filename: str):
+    def load_model(self, filename: str) -> None:
         if not isinstance(filename, str):
             raise TypeError("filename must be a string!")
         with open(filename, "rb") as fid:
@@ -118,7 +118,7 @@ class DeCaptcha:
             self.__is_active = True
 
 
-def model_file():
+def model_file() -> str:
     version = "1.2.2"
     if version != sklearn.__version__:
         import logging

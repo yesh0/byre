@@ -24,7 +24,7 @@ from byre.data import TorrentInfo, PROMOTION_TWO_UP, PROMOTION_FREE, PROMOTION_H
     LocalTorrent
 
 
-def _piecewise_linear(points: list[tuple[float, float]], x: float):
+def _piecewise_linear(points: list[tuple[float, float]], x: float) -> float:
     """分段线性函数。"""
 
     if len(points) == 0:
@@ -45,7 +45,7 @@ def _piecewise_linear(points: list[tuple[float, float]], x: float):
     return points[-1][1]
 
 
-def _sigmoid(x: float):
+def _sigmoid(x: float) -> float:
     try:
         return 1 / (1 + math.exp(-x))
     except OverflowError:
@@ -71,7 +71,7 @@ class Scorer:
     leecher_weights = [(0., 0.1), (2., 0.6), (6., 0.9), (10., 1.0)]
     """按下载者数量来计算的评分系数，主要用来表示太少人下载时的风险程度。"""
 
-    def score_downloading(self, torrent: TorrentInfo, recovery=True):
+    def score_downloading(self, torrent: TorrentInfo, recovery=True) -> float:
         """为某个种子的下载价值评分，输出是下载完成后每天预期的分享率。"""
         if torrent.seeders <= 0:
             # 没法下。
@@ -109,7 +109,7 @@ class Scorer:
 
         return value
 
-    def score_uploading(self, torrent: LocalTorrent):
+    def score_uploading(self, torrent: LocalTorrent) -> float:
         """为某个正在上传的种子的价值评分，输出是每天预期的分享率。负分不应被删除。"""
         if torrent.torrent.upspeed > 5 * 1024:
             return -1.

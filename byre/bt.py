@@ -30,7 +30,7 @@ _debug, _info, _warning, _fatal = _logger.debug, _logger.info, _logger.warning, 
 class BtClient:
     """对 qBittorrent 客户端的各种操作进行封装。"""
 
-    def __init__(self, url: str, download_dir: str):
+    def __init__(self, url: str, download_dir: str) -> None:
         info = urlparse(url)
         scheme = info.scheme or "http"
         self._dir = os.path.realpath(download_dir)
@@ -45,7 +45,7 @@ class BtClient:
         if self.client.app.version < "v4.5.2":
             raise ConnectionError("请升级到更新的 qBittorrent 版本")
 
-    def init_categories(self, categories: typing.Iterable[str]):
+    def init_categories(self, categories: typing.Iterable[str]) -> None:
         """创建类别并设置下载目录，不会更改现有类别的设置。"""
         existing = set(self.client.torrents_categories().keys())
         for category in categories:
@@ -59,14 +59,14 @@ class BtClient:
                 torrent_dir=download_dir,
             )
 
-    def remove_categories(self, categories: typing.Iterable[str]):
+    def remove_categories(self, categories: typing.Iterable[str]) -> None:
         """删除类别。"""
         existing = set(self.client.torrents_categories().keys())
         removable = existing & set(categories)
         _debug("计划删除类别 %s，最终应删除 %s", categories, removable)
         self.client.torrents_remove_categories(removable)
 
-    def init_tags(self, reset=False):
+    def init_tags(self, reset=False) -> None:
         """创建（或删除）“byr”标签。"""
         if "byr" not in self.client.torrents_tags():
             if not reset:
@@ -79,7 +79,7 @@ class BtClient:
             return
         _debug("无需创建/删除标签")
 
-    def add_torrent(self, torrent: bytes, info: TorrentInfo, paused=False):
+    def add_torrent(self, torrent: bytes, info: TorrentInfo, paused=False) -> None:
         """添加种子并设置对应的类别和标签。"""
         title = self._generate_rename(info)
         _info("正在添加种子“%s”", title)
@@ -93,17 +93,17 @@ class BtClient:
             tags=["byr"],
         )
 
-    def rename_torrent(self, torrent: LocalTorrent, info: TorrentInfo):
+    def rename_torrent(self, torrent: LocalTorrent, info: TorrentInfo) -> None:
         """重新按照格式命名种子。"""
         title = self._generate_rename(info)
         self.client.torrents_rename(torrent.torrent.hash, title)
 
-    def remove_torrent(self, torrent: LocalTorrent):
+    def remove_torrent(self, torrent: LocalTorrent) -> None:
         """删除种子并删除对应的文件。"""
         _info("正在删除种子“%s”", torrent.torrent.name)
         self.client.torrents_delete(delete_files=True, torrent_hashes=[torrent.torrent.hash])
 
-    def list_torrents(self, remote_torrents: list[TorrentInfo], wants_all=False):
+    def list_torrents(self, remote_torrents: list[TorrentInfo], wants_all=False) -> list[LocalTorrent]:
         """列出所有本地带有“byr”标签且命名符合要求的种子。"""
         remote_mapping = dict((t.seed_id, t) for t in remote_torrents)
         torrents = []
@@ -119,11 +119,11 @@ class BtClient:
                 torrents.append(LocalTorrent(torrent, 0, None))
         return torrents
 
-    def _get_download_dir(self, torrent: TorrentInfo):
+    def _get_download_dir(self, torrent: TorrentInfo) -> str:
         """下载目录，由种子分类及二级分类决定。"""
         return (os.path.join(self._dir, torrent.category, torrent.second_category)
                 if torrent.second_category else os.path.join(self._dir, torrent.category))
 
     @staticmethod
-    def _generate_rename(info):
+    def _generate_rename(info: TorrentInfo) -> str:
         return f"[byr-{info.seed_id}]{info.title}"
