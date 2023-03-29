@@ -233,7 +233,7 @@ class ByrApi:
             return self._user_id
         page = self.client.get_soup("")
         # noinspection PyTypeChecker
-        user_id = self.extract_url_id(page.select("a[class=User_Name]")[0].attrs["href"])
+        user_id = self.extract_url_id(page.select_one("a[href^=userdetails]").attrs["href"])
         _debug("提取的用户 ID 为：%d", user_id)
         self._user_id = user_id
         return user_id
