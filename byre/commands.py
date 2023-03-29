@@ -25,6 +25,7 @@ import click
 import tabulate
 import tomli
 
+import byre.setup
 from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, ByrSortableField, UserTorrentKind, \
     LocalTorrent, planning, scoring, PROMOTION_FREE, CATEGORIES
 
@@ -127,6 +128,9 @@ class GlobalConfig(click.ParamType):
         if planner and self.planner is None:
             self.planner = planning.Planner(max_total_size=self.max_total_size,
                                             max_download_size=self.max_download_size)
+
+    def setup(self):
+        byre.setup.setup(self.qbittorrent_url)
 
     def display_torrent_info(self, seed: str):
         seed_id = self._parse_seed_id(seed)

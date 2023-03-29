@@ -45,6 +45,13 @@ class BtClient:
         if self.client.app.version < "v4.5.2":
             raise ConnectionError("请升级到更新的 qBittorrent 版本")
 
+    def init_webui(self, username: str, password: str):
+        """设置 Web UI 的用户名和密码。"""
+        self.client.app_set_preferences({
+            "web_ui_username": username,
+            "web_ui_password": password,
+        })
+
     def init_categories(self, categories: typing.Iterable[str]) -> None:
         """创建类别并设置下载目录，不会更改现有类别的设置。"""
         existing = set(self.client.torrents_categories().keys())

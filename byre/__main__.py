@@ -132,6 +132,12 @@ def download(seed: str, dry_run: bool):
     _commands.download_one(seed, dry_run)
 
 
+@main.command(name="setup")
+def setup():
+    """下载并配置 qBittorrent-nox。"""
+    _commands.setup()
+
+
 def entry_point():
     # 这些要在 click 产生输出之前设置好，因为要兼容 setuptools 的配置（直接调用 main 函数），所以只能放这里了。
     os.environ["LANGUAGE"] = "zh"

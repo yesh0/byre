@@ -1,0 +1,13 @@
+[Unit]
+Description=qBittorrent-nox service
+Wants=network-online.target
+After=local-fs.target network-online.target nss-lookup.target
+
+[Service]
+Type=simple
+PrivateTmp=false
+ExecStart={qbittorrent_command}
+TimeoutStopSec=1800
+
+[Install]
+WantedBy=multi-user.target
