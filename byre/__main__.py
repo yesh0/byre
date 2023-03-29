@@ -21,7 +21,8 @@ import typing
 
 import click
 
-from byre import TorrentPromotion, ByrSortableField, UserTorrentKind, utils
+from byre import TorrentPromotion, UserTorrentKind, utils
+from byre.clients.api import NexusSortableField
 from byre.commands import GlobalConfig
 
 _commands: typing.Optional[GlobalConfig] = None
@@ -75,11 +76,11 @@ def byr_user(user_id: int):
 @click.argument("page", type=click.INT, default=0, metavar="[种子页面页码]")
 @click.option("-p", "--promotion", type=click.Choice([p.name.lower() for p in TorrentPromotion], case_sensitive=False),
               default="any", help="促销类型")
-@click.option("-o", "--order", type=click.Choice([p.name.lower() for p in ByrSortableField], case_sensitive=False),
+@click.option("-o", "--order", type=click.Choice([p.name.lower() for p in NexusSortableField], case_sensitive=False),
               default="id", help="排序类型")
 def byr_list(page: int, promotion: str, order: str):
     """显示北邮人种子列表（页码从零开始）。"""
-    _commands.list_torrents(page, TorrentPromotion[promotion.upper()], ByrSortableField[order.upper()])
+    _commands.list_torrents(page, TorrentPromotion[promotion.upper()], NexusSortableField[order.upper()])
 
 
 @byr.command(name="mine")

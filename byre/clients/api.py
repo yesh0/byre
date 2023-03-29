@@ -13,6 +13,7 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import enum
 import logging
 from urllib.parse import parse_qs, urlparse
 
@@ -151,3 +152,22 @@ class NexusApi:
         if _UPLOADED in info:
             # 北洋园只有上传量。
             user.uploaded = utils.convert_nexus_size(info[_UPLOADED].get_text(strip=True))
+
+
+class NexusSortableField(enum.Enum):
+    """
+    NexusPHP 中种子列表页面允许的排序，数字为页面的 sort 参数。
+
+    这个北邮人和北洋园是一致的。
+    """
+
+    ID = 0
+    TITLE = 1
+    FILE_COUNT = 2
+    COMMENT_COUNT = 3
+    LIVE_TIME = 4
+    SIZE = 5
+    FINISHED_COUNT = 6
+    SEEDER_COUNT = 7
+    LEECHER_COUNT = 8
+    UPLOADER = 9

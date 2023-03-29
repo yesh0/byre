@@ -26,7 +26,7 @@ import tabulate
 import tomli
 
 import byre.setup
-from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, ByrSortableField, UserTorrentKind, \
+from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, NexusSortableField, UserTorrentKind, \
     LocalTorrent, planning, scoring, PROMOTION_FREE, CATEGORIES
 
 _logger = logging.getLogger("byre.commands")
@@ -172,7 +172,7 @@ class GlobalConfig(click.ParamType):
             ("上传排行", click.style(f"{user.ranking}", dim=True)),
         ], showindex=True, disable_numparse=True))
 
-    def list_torrents(self, page=0, promotions=TorrentPromotion.ANY, sorted_by=ByrSortableField.ID):
+    def list_torrents(self, page=0, promotions=TorrentPromotion.ANY, sorted_by=NexusSortableField.ID):
         self.init(byr=True)
         torrents = self.byr.list_torrents(page, promotion=promotions, sorted_by=sorted_by)
         self._display_torrents(torrents)
@@ -463,7 +463,7 @@ class GlobalConfig(click.ParamType):
         time.sleep(0.5)
         lists.append(self.byr.list_torrents(0))
         time.sleep(0.5)
-        lists.append(self.byr.list_torrents(0, sorted_by=ByrSortableField.LEECHER_COUNT))
+        lists.append(self.byr.list_torrents(0, sorted_by=NexusSortableField.LEECHER_COUNT))
         time.sleep(0.5)
         lists.append(self.byr.list_torrents(0, promotion=TorrentPromotion.FREE))
         time.sleep(0.5)

@@ -16,7 +16,6 @@
 """提供北邮人 PT 站的部分读取 API 接口。"""
 
 import datetime
-import enum
 import logging
 import re
 import time
@@ -26,7 +25,7 @@ import bs4
 from overrides import override
 
 from byre import utils
-from byre.clients.api import NexusApi
+from byre.clients.api import NexusApi, NexusSortableField
 from byre.clients.client import NexusClient
 from byre.data import ByrUser, TorrentInfo, TorrentPromotion, TorrentTag, UserTorrentKind
 
@@ -83,25 +82,12 @@ class ByrClient(NexusClient):
         raise ConnectionError("登录请求失败，因为北邮人有封 IP 机制，请谨慎使用")
 
 
-class ByrSortableField(enum.Enum):
-    ID = 0
-    TITLE = 1
-    FILE_COUNT = 2
-    COMMENT_COUNT = 3
-    LIVE_TIME = 4
-    SIZE = 5
-    FINISHED_COUNT = 6
-    SEEDER_COUNT = 7
-    LEECHER_COUNT = 8
-    UPLOADER = 9
-
-
 class ByrApi(NexusApi):
     """北邮人 PT 站爬虫，提供站点部分信息的读取 API。"""
 
     def list_torrents(self, page: int = 0, promotion: TorrentPromotion = TorrentPromotion.ANY,
                       tag: TorrentTag = TorrentTag.ANY,
-                      sorted_by: ByrSortableField = ByrSortableField.ID,
+                      sorted_by: NexusSortableField = NexusSortableField.ID,
                       desc: bool = True) -> list[TorrentInfo]:
         """从 torrents.php 页面提取信息。"""
         order = "desc" if desc else "asc"
