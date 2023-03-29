@@ -1,5 +1,7 @@
 # byre - 一款北邮人 PT 命令行操作软件
 
+（示例图片用的 asciinema 的中文渲染有问题，将就着看吧。）
+
 [![asciicast](https://asciinema.org/a/570391.svg)](https://asciinema.org/a/570391)
 
 ## 使用方法
@@ -39,13 +41,17 @@ Usage: byre [OPTIONS] COMMAND [ARGS]...
 
 ### 配置文件
 
-请见 [byre.example.toml](./byre.example.toml)，里面有比较详细的注释说明。总之需要填写：
+请见 [byre.example.toml](byre/byre.example.toml)，里面有比较详细的注释说明。总之需要填写：
 - 北邮人用户名、密码
 - qBittorrent 用户名、密码、端口等
 - 下载位置
 - 最大允许的占用空间上限、一次下载量上限
 
 ## 愿望清单
+
+- [ ] 自动创建 / 打开配置文件并打开编辑器（click 有相关功能）。
+
+- [ ] 自动下载 qBittorrent，根据配置文件配置好。
 
 - [ ] 支持多个 NexusPHP 站点
 

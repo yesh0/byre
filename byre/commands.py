@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+import importlib.resources
 import logging
 import math
 import os.path
@@ -64,13 +64,25 @@ class GlobalConfig(click.ParamType):
 
     def convert(self, value: str, param, ctx):
         if not value:
-            for f in ["byre.toml", str(pathlib.Path.home().joinpath(".config", "byre", "byre.toml")), "/etc/byre.toml",
+            default_path = pathlib.Path.home().joinpath(".config", "byre", "byre.toml")
+            for f in ["byre.toml", str(default_path), "/etc/byre.toml",
                       "/etc/byre/byre.toml"]:
                 if os.path.exists(f):
+                    _info("默认选定配置文件：%s", pathlib.Path(f))
                     value = f
                     break
             else:
-                raise FileNotFoundError("找不到配置文件“byre.toml”，请使用 -c / --config 选项")
+                _warning("找不到配置文件“byre.toml”，如果已有配置文件，请尝试使用 -c / --config 选项")
+                if click.prompt("是否创建配置文件？",
+                                type=click.Choice(["yes", "no"]), default="no", prompt_suffix=" ") == "yes":
+                    _info("默认配置文件位置：%s", default_path)
+                    with importlib.resources.files(__package__).joinpath("byre.example.toml").open() as tmpl:
+                        with default_path.open("w") as config:
+                            config.write(tmpl.read())
+                            config.flush()
+                    click.edit(filename=str(default_path))
+                else:
+                    raise FileNotFoundError("找不到配置文件")
         with open(value, "rb") as file:
             self.config = tomli.load(file)
 
