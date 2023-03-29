@@ -132,10 +132,13 @@ def download(seed: str, dry_run: bool):
     _commands.download_one(seed, dry_run)
 
 
-# 这些要在 click 产生输出之前设置好，因为要兼容 setuptools 的配置（直接调用 main 函数），所以只能放这里了。
-os.environ["LANGUAGE"] = "zh"
-# 想用 importlib 但似乎 gettext 不支持，希望没问题。
-gettext.bindtextdomain("messages", localedir=os.path.join(os.path.dirname(os.path.realpath(__file__)), "locales"))
+def entry_point():
+    # 这些要在 click 产生输出之前设置好，因为要兼容 setuptools 的配置（直接调用 main 函数），所以只能放这里了。
+    os.environ["LANGUAGE"] = "zh"
+    # 想用 importlib 但似乎 gettext 不支持，希望没问题。
+    gettext.bindtextdomain("messages", localedir=os.path.join(os.path.dirname(os.path.realpath(__file__)), "locales"))
+    main()
+
 
 if __name__ == "__main__":
-    main()
+    entry_point()
