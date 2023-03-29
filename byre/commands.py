@@ -82,7 +82,8 @@ class GlobalConfig(click.ParamType):
                         with default_path.open("w") as config:
                             config.write(tmpl.read())
                             config.flush()
-                    click.edit(filename=str(default_path))
+                    value = str(default_path)
+                    click.edit(filename=value)
                 else:
                     raise FileNotFoundError("找不到配置文件")
         with open(value, "rb") as file:
