@@ -97,7 +97,7 @@ def _init_qbittorrent_config(path: pathlib.Path, port: int):
     with open("/proc/meminfo") as meminfo:
         kilobytes = int([line.split() for line in meminfo.readlines() if line.startswith("MemTotal:")][0][1])
     allowed_mb = round(kilobytes / 1024 / 2)
-    _info("总内存大小 %d kB，默认允许 qBittorrent 使用 1/2 的内存：%d MB", allowed_mb)
+    _info("总内存大小 %d kB，默认允许 qBittorrent 使用 1/2 的内存：%d MB", kilobytes, allowed_mb)
     with importlib.resources.files(__package__).joinpath("qBittorrent.conf.tmpl").open() as f:
         template = f.read()
     config = template.format_map({
@@ -122,13 +122,14 @@ def _init_qbittorrent_config(path: pathlib.Path, port: int):
 
 def _init_systemd_unit(home: pathlib.Path, executable: pathlib.Path, profile_dir: pathlib.Path):
     service_file = home.joinpath(".config", "systemd", "user", "qbittorrent.service")
-    with importlib.resources.files(__package__).joinpath("qBittorrent.conf.tmpl").open() as f:
+    with importlib.resources.files(__package__).joinpath("qbittorrent.service.tmpl").open() as f:
         template = f.read()
     unit = template.format_map({
         "qbittorrent_command": f"{executable} --profile=\"{profile_dir}\"",
     })
     _debug("SystemD Unit 文件内容：\n%s", unit)
-    with service_file.open() as service:
+    os.makedirs(service_file.parent, exist_ok=True)
+    with service_file.open("w") as service:
         service.write(unit)
     os.system("systemctl --user daemon-reload")
     os.system("systemctl --user enable qbittorrent.service")
