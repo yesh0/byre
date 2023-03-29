@@ -21,12 +21,12 @@ import logging
 import re
 import time
 import typing
-from urllib.parse import parse_qs, urlparse
 
 import bs4
 from overrides import override
 
 from byre import utils
+from byre.clients.api import NexusApi
 from byre.clients.client import NexusClient
 from byre.data import ByrUser, TorrentInfo, TorrentPromotion, TorrentTag, UserTorrentKind
 
@@ -96,65 +96,8 @@ class ByrSortableField(enum.Enum):
     UPLOADER = 9
 
 
-_LEVEL = "等级"
-_MANA = "魔力值"
-_INVITATIONS = "邀请"
-_TRANSFER = "传输"
-
-
-class ByrApi:
+class ByrApi(NexusApi):
     """北邮人 PT 站爬虫，提供站点部分信息的读取 API。"""
-
-    client: ByrClient
-
-    _user_id = 0
-    """当前用户 ID。"""
-
-    def __init__(self, client: ByrClient) -> None:
-        self.client = client
-        if not client.is_logged_in():
-            client.login()
-
-    def close(self) -> None:
-        """关闭所用的资源。"""
-        self.client.close()
-
-    def current_user_id(self) -> int:
-        """获取当前用户 ID。"""
-        if self._user_id != 0:
-            return self._user_id
-        page = self.client.get_soup("")
-        # noinspection PyTypeChecker
-        user_id = self.extract_url_id(page.select_one("a[href^=userdetails]").attrs["href"])
-        _debug("提取的用户 ID 为：%d", user_id)
-        self._user_id = user_id
-        return user_id
-
-    def user_info(self, user_id: int = 0) -> ByrUser:
-        """获取用户信息。"""
-        if user_id == 0:
-            user_id = self.current_user_id()
-
-        page = self.client.get_soup(f"userdetails.php?id={user_id}")
-        user = ByrUser()
-
-        user.user_id = user_id
-
-        name = page.find("h1")
-        user.username = "" if name is None else name.get_text(strip=True)
-
-        info_entries = page.select("td.embedded>table>tr")
-        info: dict[str, bs4.Tag] = {}
-        for entry in info_entries:
-            cells: bs4.element.ResultSet[bs4.Tag] = entry.find_all("td", recursive=False)
-            if len(cells) != 2:
-                continue
-            info[cells[0].get_text(strip=True)] = cells[1]
-
-        self._extract_user_info(user, info)
-        if user_id == self.current_user_id():
-            self._extract_info_bar(user, page)
-        return user
 
     def list_torrents(self, page: int = 0, promotion: TorrentPromotion = TorrentPromotion.ANY,
                       tag: TorrentTag = TorrentTag.ANY,
@@ -208,7 +151,7 @@ class ByrApi:
         cat = page.select_one("span#type").text.strip()
         sec_type = page.select_one("span#sec_type")
         sec_cat = sec_type.text.strip() if sec_type is not None else "其它"
-        size = utils.convert_byr_size(page.select_one("span#type").parent.find(text=re.compile("\\d")).text)
+        size = utils.convert_nexus_size(page.select_one("span#type").parent.find(text=re.compile("\\d")).text)
         promotions = self._extract_promotion_info(title_tag)
         tag = self._extract_tag(title_tag)
         uploaded_at = datetime.datetime.fromisoformat(page.select_one("span[title]").attrs["title"])
@@ -251,63 +194,6 @@ class ByrApi:
             hash=hs,
         )
 
-    @staticmethod
-    def extract_url_id(href: str) -> int:
-        return int(parse_qs(urlparse(href).query)["id"][0])
-
-    @staticmethod
-    def _extract_user_info(user: ByrUser, info: dict[str, bs4.Tag]) -> None:
-        """从 `userdetails.php` 的最大的那个表格提取用户信息。"""
-        if _LEVEL in info:
-            level_img = info[_LEVEL].select_one("img")
-            if level_img is not None:
-                user.level = level_img.attrs.get("title", "")
-
-        if _MANA in info:
-            user.mana = float(info[_MANA].get_text(strip=True))
-
-        if _INVITATIONS in info:
-            invitations = info[_INVITATIONS].get_text(strip=True)
-            if "没有邀请资格" not in invitations:
-                user.invitations = int(invitations)
-
-        if _TRANSFER in info:
-            transferred = info[_TRANSFER]
-            for cell in transferred.select("td"):
-                text = cell.get_text(strip=True)
-                if ":" not in text:
-                    continue
-                field, value = [s.strip() for s in text.split(":", 1)]
-                if field == "分享率":
-                    user.ratio = float(value)
-                elif field == "上传量":
-                    user.uploaded = utils.convert_byr_size(value)
-                elif field == "下载量":
-                    user.downloaded = utils.convert_byr_size(value)
-
-    @staticmethod
-    def _extract_info_bar(user: ByrUser, page: bs4.Tag) -> None:
-        """从页面的用户信息栏提取一些信息（就不重复提取 `_extract_user_info` 能提取的了）。"""
-        ranking_tag = next(
-            tag for tag in page.select("#info_block font.color_bonus") if "上传排行" in tag.text
-        )
-        ranking = str(ranking_tag.next_sibling).strip()
-        if ranking.isdigit():
-            user.ranking = int(ranking)
-
-        up_arrow = page.select_one("#info_block img.arrowup[title=当前做种]")
-        seeding = str("0" if up_arrow is None else up_arrow.next).strip()
-        if seeding.isdigit():
-            user.seeding = int(seeding)
-
-        down_arrow = page.select_one("#info_block img.arrowdown[title=当前下载]")
-        downloading = str("0" if down_arrow is None else down_arrow.next).strip()
-        if downloading.isdigit():
-            user.downloading = int(downloading)
-
-        connectable = page.select_one("#info_block font[color=green]")
-        user.connectable = connectable is not None and "是" in connectable.text
-
     def _extract_torrent_table(self, rows: bs4.element.ResultSet[bs4.Tag],
                                comment_cell: typing.Optional[int] = 2,
                                live_time_cell: typing.Optional[int] = 3,
@@ -338,13 +224,13 @@ class ByrApi:
                 datetime.datetime.fromisoformat(cells[live_time_cell].select_one("span").attrs["title"])
                 if live_time_cell is not None else datetime.datetime.now()
             )
-            size = utils.convert_byr_size(cells[size_cell].get_text(strip=True)) if size_cell is not None else 0.
+            size = utils.convert_nexus_size(cells[size_cell].get_text(strip=True)) if size_cell is not None else 0.
             seeders = utils.int_or(cells[seeder_cell].get_text(strip=True)) if seeder_cell is not None else 0
             leechers = utils.int_or(cells[leecher_cell].get_text(strip=True)) if leecher_cell is not None else 0
             finished = utils.int_or(cells[finished_cell].get_text(strip=True)) if finished_cell is not None else 0
-            uploaded = utils.convert_byr_size(
+            uploaded = utils.convert_nexus_size(
                 cells[uploaded_cell].get_text(strip=True)) if uploaded_cell is not None else 0
-            downloaded = utils.convert_byr_size(
+            downloaded = utils.convert_nexus_size(
                 cells[downloaded_cell].get_text(strip=True)) if downloaded_cell is not None else 0
             ratio = utils.float_or(cells[ratio_cell].get_text(strip=True)) if ratio_cell is not None else 0.
             if uploader_cell is not None:

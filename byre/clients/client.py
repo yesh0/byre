@@ -23,7 +23,7 @@ from abc import ABCMeta, abstractmethod
 import bs4
 import requests
 
-_logger = logging.getLogger("byre.clients.api")
+_logger = logging.getLogger("byre.clients.client")
 _debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
 
 
