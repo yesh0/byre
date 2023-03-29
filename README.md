@@ -10,7 +10,7 @@
 
 ```console
 $ git clone https://github.com/yesh0/byre.git
-$ pip3 install byre
+$ pip3 install --use-pep517 ./byre
 $ byre
 Usage: byre [OPTIONS] COMMAND [ARGS]...
 
