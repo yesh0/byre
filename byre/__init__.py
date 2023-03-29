@@ -15,6 +15,6 @@
 
 """提供北邮人 PT 站的部分读取 API 以及其与 BT 客户端的接口。"""
 
-from byre.api import *
 from byre.bt import *
+from byre.clients.byr import *
 from byre.data import *
