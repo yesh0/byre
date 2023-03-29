@@ -201,10 +201,10 @@ class GlobalConfig(click.ParamType):
             return
         self._display_local_torrents(torrents, speed)
 
-    def download_one(self, seed: str, dry_run: bool, paused: bool):
+    def download_one(self, seed: str, dry_run: bool, paused: bool, exists: bool):
         seed_id = self._parse_seed_id(seed)
         self.init(byr=True)
-        self.download(self.byr.torrent(seed_id), dry_run, paused=paused)
+        self.download(self.byr.torrent(seed_id), dry_run, paused=paused, exists=exists)
 
     def fix(self, dry_run: bool):
         self.init(bt=True, byr=True)
@@ -261,7 +261,7 @@ class GlobalConfig(click.ParamType):
                     self.bt.rename_torrent(torrent, torrent.info)
 
     def download(self, target: typing.Optional[TorrentInfo] = None, dry_run=False, print_scores=False, free_only=False,
-                 paused=False):
+                 paused=False, exists=False):
         self.init(bt=True, byr=True, planner=True, scorer=True)
         local, scored_local, local_dict = self._gather_local_info()
         if target is None:
@@ -314,7 +314,7 @@ class GlobalConfig(click.ParamType):
             for t in downloadable:
                 _info("正在添加下载：[byr-%d]%s", t.seed_id, t.title)
                 torrent = self.byr.download_torrent(t.seed_id)
-                self.bt.add_torrent(torrent, t, paused=paused)
+                self.bt.add_torrent(torrent, t, paused=paused, exists=exists)
                 time.sleep(0.5)
 
     def _require(self, typer: typing.Callable, *args, password=False):

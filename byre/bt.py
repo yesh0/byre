@@ -88,7 +88,7 @@ class BtClient:
                 continue
             _debug("无需创建/删除“%s”", tag)
 
-    def add_torrent(self, torrent: bytes, info: TorrentInfo, paused=False) -> None:
+    def add_torrent(self, torrent: bytes, info: TorrentInfo, paused=False, exists=False) -> None:
         """添加种子并设置对应的类别和标签。"""
         title = self._generate_rename(info)
         _info("正在添加种子“%s”", title)
@@ -96,7 +96,7 @@ class BtClient:
             torrent_files=torrent,
             save_path=self._get_download_dir(info),
             category=info.category,
-            is_skip_checking=False,
+            is_skip_checking=exists,
             is_paused=paused,
             rename=title,
             tags=["byr"],
