@@ -103,7 +103,7 @@ def _init_qbittorrent_config(path: pathlib.Path, port: int):
     config = template.format_map({
         "memory": allowed_mb,
         "max_connections": 1024,
-        "torrent_port": 6881,
+        "torrent_port": 34112,
         "webui_port": port,
     })
     _debug("qBittorrent 配置文件内容：\n%s", config)
@@ -114,7 +114,7 @@ def _init_qbittorrent_config(path: pathlib.Path, port: int):
         its data will be made available to others by means of upload.
         Any content you share is your sole responsibility.
     """)
-    _warning("请您确保防火墙（如果有的话）的 IPv6 6881 端口开放")
+    _warning("请您确保防火墙（如果有的话）的 IPv6 34112 端口开放")
     os.makedirs(path.parent, exist_ok=True)
     with path.open("w") as config_out:
         config_out.write(config)
