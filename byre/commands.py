@@ -152,7 +152,7 @@ class GlobalConfig(click.ParamType):
              (click.style(f"<https://byr.pt/userdetails.php?id={torrent.uploader.user_id}>", underline=True)
               if torrent.uploader.user_id != 0 else "")
              ),
-        ], maxcolwidths=[2, 10, 70], showindex=True, disable_numparse=True))
+        ], maxcolwidths=[2, 10, 60], showindex=True, disable_numparse=True))
 
     def display_user_info(self, user_id=0):
         self.init(byr=True)
@@ -250,7 +250,7 @@ class GlobalConfig(click.ParamType):
                 ))
         _info(
             "重命名结果：\n" +
-            tabulate.tabulate((*failed, *found), maxcolwidths=[2, 60, 10, 10], disable_numparse=True)
+            tabulate.tabulate((*failed, *found), maxcolwidths=[2, 50, 10, 10], disable_numparse=True)
         )
         if dry_run:
             _info("以上计划未被实际运行；若想实际重命名，请去除命令行 -d / --dry-run 选项")
@@ -298,7 +298,7 @@ class GlobalConfig(click.ParamType):
                     click.style(f"+{t.file_size:.2f} GB", fg="yellow"),
                     click.style(str(t.promotions), fg="yellow"),
                 ) for t in downloadable),
-            ), maxcolwidths=[2, 8, 60, 10, 10], disable_numparse=True)
+            ), maxcolwidths=[2, 8, 42, 10, 10], disable_numparse=True)
         ))
         if print_scores:
             click.echo_via_pager(summary)
@@ -341,7 +341,7 @@ class GlobalConfig(click.ParamType):
     def _display_torrents(torrents: list[TorrentInfo]):
         table = []
         header = ["ID", "标题", ""]
-        limits = [8, 60, 10]
+        limits = [8, 54, 10]
         for t in torrents:
             table.append((
                 t.seed_id,
@@ -361,7 +361,7 @@ class GlobalConfig(click.ParamType):
     def _display_local_torrents(torrents: list[LocalTorrent], speed=False):
         table = []
         header = ["最后活跃", "标题", "速度" if speed else "累计", "分享率"]
-        limits = [8, 60, 10, 10]
+        limits = [8, 44, 10, 10]
         for t in torrents:
             days = (time.time() - t.torrent.last_activity) / (24 * 60 * 60)
             table.append((
@@ -395,7 +395,7 @@ class GlobalConfig(click.ParamType):
     def _display_scored_torrents(torrents: list[tuple[TorrentInfo, float]]):
         table = []
         header = ["评分", "标题", ""]
-        limits = [8, 60, 10]
+        limits = [8, 54, 10]
         for t, score in torrents:
             table.append((
                 click.style(f"{score:.2f}", fg="bright_yellow"),
