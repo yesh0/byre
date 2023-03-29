@@ -115,7 +115,8 @@ def _init_qbittorrent_config(path: pathlib.Path, port: int):
         Any content you share is your sole responsibility.
     """)
     _warning("请您确保防火墙（如果有的话）的 IPv6 6881 端口开放")
-    with path.open() as config_out:
+    os.makedirs(path.parent, exist_ok=True)
+    with path.open("w") as config_out:
         config_out.write(config)
 
 

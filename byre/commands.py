@@ -77,6 +77,7 @@ class GlobalConfig(click.ParamType):
                 if click.prompt("是否创建配置文件？",
                                 type=click.Choice(["yes", "no"]), default="no", prompt_suffix=" ") == "yes":
                     _info("默认配置文件位置：%s", default_path)
+                    os.makedirs(default_path.parent, exist_ok=True)
                     with importlib.resources.files(__package__).joinpath("byre.example.toml").open() as tmpl:
                         with default_path.open("w") as config:
                             config.write(tmpl.read())
