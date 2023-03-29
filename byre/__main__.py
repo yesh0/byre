@@ -127,9 +127,10 @@ def fix(dry_run: bool):
 @do.command(name="download")
 @click.argument("seed", type=click.STRING, metavar="<北邮人链接或是种子 ID>")
 @click.option("-d", "--dry-run", is_flag=True, help="计算种子调整结果，但不添加种子到本地")
-def download(seed: str, dry_run: bool):
+@click.option("-p", "--paused", is_flag=True, help="使种子在添加后被暂停")
+def download(seed: str, dry_run: bool, paused: bool):
     """下载特定种子，可能会删除其它种子腾出空间来满足下载需求。"""
-    _commands.download_one(seed, dry_run)
+    _commands.download_one(seed, dry_run, paused)
 
 
 @main.command(name="setup")
