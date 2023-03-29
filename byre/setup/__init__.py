@@ -155,6 +155,8 @@ def _parse_url(url: str):
         port = 33332
     else:
         port = parsed.port
+    if not parsed.username or not parsed.password:
+        raise ValueError("用户名 / 密码为空，可能是配置中 qBittorrent 的 URL 含有非法字符")
     return parsed.username, parsed.password, port
 
 
