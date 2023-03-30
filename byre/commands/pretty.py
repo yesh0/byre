@@ -18,6 +18,7 @@ import time
 import click
 import tabulate
 
+from byre.clients import CLIENTS
 from byre.clients.api import NexusApi
 from byre.clients.data import TorrentInfo, NexusUser, LocalTorrent
 
@@ -34,7 +35,7 @@ def pretty_torrent_info(torrent: TorrentInfo):
     click.echo(tabulate.tabulate([
         ("标题", click.style(torrent.title, bold=True)),
         ("副标题", click.style(torrent.sub_title, dim=True)),
-        ("链接", click.style(f"https://byr.pt/details.php?id={torrent.seed_id}", underline=True)),
+        ("链接", click.style(CLIENTS[torrent.site].get_url(f"details.php?id={torrent.seed_id}"), underline=True)),
         ("类型", click.style(f"{torrent.cat} - {torrent.second_category}", fg="bright_red")),
         ("促销", click.style(str(torrent.promotions), fg="bright_yellow")),
         ("大小", click.style(f"{torrent.file_size:.2f} GB", fg="cyan")),
@@ -42,7 +43,8 @@ def pretty_torrent_info(torrent: TorrentInfo):
         ("做种人数", f"{torrent.seeders}"),
         ("下载人数", click.style(f"{torrent.leechers}", fg="bright_magenta")),
         ("上传用户", f"{torrent.uploader.username} " +
-         (click.style(f"<https://byr.pt/userdetails.php?id={torrent.uploader.user_id}>", underline=True)
+         (click.style(f'<{CLIENTS[torrent.site].get_url(f"userdetails.php?id={torrent.uploader.user_id}")}>',
+                      underline=True)
           if torrent.uploader.user_id != 0 else "")
          ),
     ], maxcolwidths=[2, 10, 60], showindex=True, disable_numparse=True))
@@ -51,7 +53,7 @@ def pretty_torrent_info(torrent: TorrentInfo):
 def pretty_user_info(user: NexusUser):
     click.echo(tabulate.tabulate([
         ("用户名", click.style(user.username, bold=True)),
-        ("链接", click.style(f"https://byr.pt/details.php?id={user.user_id}", underline=True)),
+        ("链接", click.style(CLIENTS[user.site].get_url(f"details.php?id={user.user_id}"), underline=True)),
         ("等级", click.style(user.level, fg="bright_yellow")),
         ("魔力值", click.style(f"{user.mana}", fg="bright_magenta")),
         ("可连接", click.style("是", fg="bright_green") if user.connectable else click.style("否", dim=True)),

@@ -18,9 +18,11 @@
 import byre.clients.byr as byr
 import byre.clients.tju as tju
 
-apis = [
+APIS = [
     byr.ByrApi,
     tju.TjuPtApi,
 ]
 
-sites = dict((api.site(), api) for api in apis)
+SITES = dict((api.site(), api) for api in APIS)
+
+CLIENTS = dict((api.site(), client) for client, api in zip([byr.ByrClient, tju.TjuPtClient], APIS))

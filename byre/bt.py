@@ -79,7 +79,7 @@ class BtClient:
     def init_tags(self, reset=False) -> None:
         """创建（或删除）“byr”和“keep”标签。"""
         tags = self.client.torrents_tags()
-        for tag in [*byre.clients.sites.keys(), "keep"]:
+        for tag in [*byre.clients.SITES.keys(), "keep"]:
             if tag not in tags:
                 if not reset:
                     self.client.torrents_create_tags([tag])
@@ -123,7 +123,7 @@ class BtClient:
                 site = remote_torrents[0].site
             else:
                 summed = []
-                for site in byre.clients.sites.keys():
+                for site in byre.clients.SITES.keys():
                     summed.extend(self.list_torrents([], wants_all=wants_all, site=site))
                 return summed
         remote_mapping = dict((t.seed_id, t) for t in remote_torrents)

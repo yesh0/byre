@@ -51,7 +51,7 @@ class BtCommand(ConfigurableGroup):
     @click.command
     @click.option("-a", "--all", "wants_all", is_flag=True, help="显示所有种子，包括不是由脚本添加的种子")
     @click.option("-s", "--speed", is_flag=True, help="只显示有上传或下载速度的种子")
-    @click.option("-p", "--pt", default="", type=click.Choice(list(byre.clients.sites.keys()) + [""]),
+    @click.option("-p", "--pt", default="", type=click.Choice(list(byre.clients.SITES.keys()) + [""]),
                   help="只显示某个 PT 站点的种子")
     def list(self, wants_all: bool, speed: bool, pt: str):
         """列出本地所有相关种子。"""

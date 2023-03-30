@@ -43,8 +43,9 @@ class ByrClient(NexusClient):
         #: 验证码自动识别模块（采用懒加载所以没有附上类型信息）。
         self._decaptcha = None
 
+    @classmethod
     @override
-    def _get_url(self, path: str) -> str:
+    def get_url(cls, path: str) -> str:
         return "https://byr.pt/" + path
 
     @override
@@ -62,7 +63,7 @@ class ByrClient(NexusClient):
         self._session.cookies.clear()
 
         login_page = self.get_soup("login.php")
-        img_url = self._get_url(
+        img_url = self.get_url(
             login_page.select("#nav_block > form > table > tr:nth-of-type(3) img")[0].attrs["src"]
         )
         captcha_text = self._decaptcha.decode(Image.open(io.BytesIO(self._session.get(img_url).content)))
@@ -70,7 +71,7 @@ class ByrClient(NexusClient):
 
         _debug("正在发起登录请求")
         login_res = self._session.post(
-            self._get_url("takelogin.php"),
+            self.get_url("takelogin.php"),
             data={
                 "username": self.username,
                 "password": self.password,

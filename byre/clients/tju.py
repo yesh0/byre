@@ -28,15 +28,16 @@ from byre.clients.client import NexusClient
 class TjuPtClient(NexusClient):
     """北洋园登录及会话管理。"""
 
-    def _get_url(self, path: str) -> str:
+    @classmethod
+    @override
+    def get_url(cls, path: str) -> str:
         return f"https://tjupt.org/{path}"
 
     def _authorize_session(self):
         self._session.cookies.clear()
 
-        print("正在发起登录请求")
         login_res = self._session.post(
-            self._get_url("takelogin.php"),
+            self.get_url("takelogin.php"),
             data={
                 "username": self.username,
                 "password": self.password,

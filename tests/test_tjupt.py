@@ -14,7 +14,6 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import pprint
 import shutil
 import tempfile
 import unittest
@@ -80,7 +79,6 @@ class TjuPtClientTestCase(unittest.TestCase):
         api = TjuPtApi(client)
         torrents = api.list_user_torrents(UserTorrentKind.COMPLETED)
         self.assertNotEqual(0, len(torrents))
-        pprint.pprint(torrents)
         shutil.rmtree(path)
 
 

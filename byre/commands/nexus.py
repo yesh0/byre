@@ -68,9 +68,9 @@ class NexusCommand(ConfigurableGroup):
 
     @click.command
     @click.argument("user", type=click.STRING, default="0", metavar="[站点用户链接或是用户 ID]")
-    def user(self, user_id: str):
+    def user(self, user: str):
         """显示用户信息。"""
-        u = self.api.user_info(pretty.parse_url_id(user_id))
+        u = self.api.user_info(pretty.parse_url_id(user))
         if u.user_id != self.api.current_user_id():
             _warning("查询的用户并非当前登录用户，限于权限，信息可能不准确")
         pretty.pretty_user_info(u)

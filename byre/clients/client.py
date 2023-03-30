@@ -64,8 +64,9 @@ class NexusClient(metaclass=ABCMeta):
             ]),
         })
 
+    @classmethod
     @abstractmethod
-    def _get_url(self, path: str) -> str:
+    def get_url(cls, path: str) -> str:
         """把路径补充为完整的 URL。"""
         pass
 
@@ -88,7 +89,7 @@ class NexusClient(metaclass=ABCMeta):
         """使用当前会话发起请求，返回 `requests.Response`。"""
         _debug("正在请求 %s", path or "/")
         for i in range(retries):
-            res = self._session.get(self._get_url(path), allow_redirects=allow_redirects)
+            res = self._session.get(self.get_url(path), allow_redirects=allow_redirects)
             if res.status_code == 200:
                 # 未登录的话大多时候会是重定向。
                 return res
