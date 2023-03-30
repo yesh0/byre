@@ -23,7 +23,7 @@ _logger = logging.getLogger("byre.utils")
 _warning = _logger.warning
 
 
-def convert_byr_size(size: str) -> float:
+def convert_nexus_size(size: str) -> float:
     """
     将文字形式的 xx MB 转换为以 GB 为单位的浮点数。
 
@@ -32,8 +32,15 @@ def convert_byr_size(size: str) -> float:
 
     size = size.strip().upper()
     try:
-        unit = ["B", "KB", "MB", "GB", "TB"].index(size[-2:])
-        return float(size[0:-2].strip()) * 1024 ** unit / (1000 ** 3)
+        byr_units = ["B", "KB", "MB", "GB", "TB"]
+        tju_units = ["", "KIB", "MIB", "GIB", "TIB"]
+        if size[-2:] in byr_units:
+            unit = byr_units.index(size[-2:])
+            size = size[0:-2]
+        else:
+            unit = tju_units.index(size[-3:])
+            size = size[0:-3]
+        return float(size.strip()) * 1024 ** unit / (1000 ** 3)
     except ValueError:
         _warning("无法识别的数据量单位：%s", size)
         return 0.

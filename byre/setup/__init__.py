@@ -22,14 +22,12 @@ import pathlib
 import platform
 import sys
 import typing
-import urllib
 from urllib.parse import urlparse
 
 import click
 import requests
-import urllib3
 
-from byre import BtClient
+from byre.bt import BtClient
 
 _QBITTORRENT_SIZE = "qbittorrent.size"
 

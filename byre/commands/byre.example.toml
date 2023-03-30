@@ -14,6 +14,20 @@ cookie_cache = "byr.cookies"
 # 访问北邮人用的 HTTP 代理，不知道有什么用，总之放在这里，有想要折腾的可以试试
 http_proxy = ""
 
+[tju]
+# 北洋园相关设置
+
+# (*) 北洋园用户名
+username = "用户名用户名用户名"
+# (*) 北洋园账户密码
+password = "密码密码密码"
+
+# 登录信息缓存文件路径
+cookie_cache = "tju.cookies"
+
+# 访问北洋园用的 HTTP 代理
+http_proxy = ""
+
 [qbittorrent]
 # qBittorrent 相关信息
 # 需要把 Web UI 开起来

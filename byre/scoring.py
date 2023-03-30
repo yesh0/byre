@@ -20,11 +20,11 @@ import math
 import time
 from dataclasses import dataclass
 
-from byre.data import TorrentInfo, PROMOTION_TWO_UP, PROMOTION_FREE, PROMOTION_HALF_DOWN, PROMOTION_THIRTY_DOWN, \
-    LocalTorrent
+from byre.clients.data import TorrentInfo, PROMOTION_TWO_UP, PROMOTION_FREE, PROMOTION_HALF_DOWN, \
+    PROMOTION_THIRTY_DOWN, LocalTorrent
 
 
-def _piecewise_linear(points: list[tuple[float, float]], x: float) -> float:
+def _piecewise_linear(points: tuple[tuple[float, float], ...], x: float) -> float:
     """分段线性函数。"""
 
     if len(points) == 0:
@@ -65,10 +65,10 @@ class Scorer:
     removal_exemption_days: float
     """不会移除才刚刚下下来几天的种子。"""
 
-    file_size_weights = [(0., 0.1), (2., 1.0), (15., 1.0), (60., 0.1), (500., 0.01)]
+    file_size_weights: tuple[tuple[float, float], ...] = ((0., 0.1), (2., 1.0), (15., 1.0), (60., 0.1), (500., 0.01))
     """按文件大小来计算的评分系数，由点指定的分段线性函数。"""
 
-    leecher_weights = [(0., 0.1), (2., 0.6), (6., 0.9), (10., 1.0)]
+    leecher_weights: tuple[tuple[float, float], ...] = ((0., 0.1), (2., 0.6), (6., 0.9), (10., 1.0))
     """按下载者数量来计算的评分系数，主要用来表示太少人下载时的风险程度。"""
 
     def score_downloading(self, torrent: TorrentInfo, recovery=True) -> float:

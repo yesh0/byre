@@ -18,7 +18,7 @@ import shutil
 import tempfile
 import unittest
 
-from byre import CATEGORIES, ByrApi, TorrentPromotion, ByrSortableField
+from byre import CATEGORIES, ByrApi, TorrentPromotion, NexusSortableField
 from byre.bt import BtClient
 # noinspection PyUnresolvedReferences
 import context
@@ -53,7 +53,7 @@ class BtClientTestCase(unittest.TestCase):
         client.init_categories(["Others"])
         byr = ByrApi(test_client.login(path))
         torrent = byr.list_torrents(0, promotion=TorrentPromotion.NONE,
-                                    sorted_by=ByrSortableField.LIVE_TIME, desc=False)[0]
+                                    sorted_by=NexusSortableField.LIVE_TIME, desc=False)[0]
 
         torrent.category = "Others"
         client.add_torrent(byr.download_torrent(torrent.seed_id), torrent, paused=True)

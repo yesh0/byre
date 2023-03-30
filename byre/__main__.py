@@ -17,20 +17,23 @@ import gettext
 import logging
 import os.path
 import sys
-import typing
 
 import click
 
-from byre import TorrentPromotion, ByrSortableField, UserTorrentKind, utils
-from byre.commands import GlobalConfig
-
-_commands: typing.Optional[GlobalConfig] = None
+from byre import utils, setup
+from byre.clients.byr import ByrClient, ByrApi
+from byre.clients.tju import TjuPtClient, TjuPtApi
+from byre.commands.bt import BtCommand
+from byre.commands.config import GlobalConfig
+from byre.commands.main import MainCommand
+from byre.commands.nexus import NexusCommand, ByrCommand
 
 
 @click.group()
 @click.option("-c", "--config", type=GlobalConfig(), default="", help="TOML 格式配置文件")
 @click.option("-v", "--verbose", is_flag=True, help="输出详细信息")
-def main(config: GlobalConfig, verbose: bool):
+@click.pass_context
+def main(ctx: click.Context, config: GlobalConfig, verbose: bool):
     """
     北邮人命令行操作以及 BT 软件整合实现。
 
@@ -42,9 +45,10 @@ def main(config: GlobalConfig, verbose: bool):
 
         https://github.com/yesh0/byre
     """
-    global _commands
+    ctx.ensure_object(dict)
+    ctx.obj["config"] = config
+
     utils.colorize_logger(None)
-    _commands = config
     logging.basicConfig(stream=sys.stderr)
     if verbose:
         logging.getLogger("byre").setLevel(logging.DEBUG)
@@ -52,92 +56,18 @@ def main(config: GlobalConfig, verbose: bool):
         logging.getLogger("byre").setLevel(logging.INFO)
 
 
-@main.group()
-def byr():
-    """访问北邮人 PT。"""
-
-
-@byr.command(name="torrent")
-@click.argument("seed", type=click.STRING, metavar="<北邮人链接或是种子 ID>")
-def byr_torrent(seed: str):
-    """显示种子信息。"""
-    _commands.display_torrent_info(seed)
-
-
-@byr.command(name="user")
-@click.argument("user_id", type=click.INT, default=0, metavar="[北邮人用户 ID]")
-def byr_user(user_id: int):
-    """显示当前用户信息。"""
-    _commands.display_user_info(user_id)
-
-
-@byr.command(name="list")
-@click.argument("page", type=click.INT, default=0, metavar="[种子页面页码]")
-@click.option("-p", "--promotion", type=click.Choice([p.name.lower() for p in TorrentPromotion], case_sensitive=False),
-              default="any", help="促销类型")
-@click.option("-o", "--order", type=click.Choice([p.name.lower() for p in ByrSortableField], case_sensitive=False),
-              default="id", help="排序类型")
-def byr_list(page: int, promotion: str, order: str):
-    """显示北邮人种子列表（页码从零开始）。"""
-    _commands.list_torrents(page, TorrentPromotion[promotion.upper()], ByrSortableField[order.upper()])
-
-
-@byr.command(name="mine")
-@click.option("-k", "--kind", type=click.Choice([p.name.lower() for p in UserTorrentKind], case_sensitive=False),
-              default="seeding", help="用户种子列表")
-def byr_user_torrents(kind: str):
-    """显示用户的种子列表（如正在做种、正在下载等列表）。"""
-    _commands.list_user_torrents(UserTorrentKind[kind.upper()])
-
-
-@main.group()
-def bt():
-    """BT 客户端（暂只支持 qBittorrent）接口。"""
-
-
-@bt.command(name="list")
-@click.option("-a", "--all", "wants_all", is_flag=True, help="显示所有种子，包括不是由脚本添加的种子")
-@click.option("-s", "--speed", is_flag=True, help="只显示有上传或下载速度的种子")
-def bt_list(wants_all: bool, speed: bool):
-    """列出本地所有相关种子。"""
-    _commands.list_bt_torrents(wants_all, speed)
-
-
-@main.group()
-def do():
-    """综合北邮人与本地的命令，主要功能所在。"""
-
-
-@do.command(name="main")
-@click.option("-d", "--dry-run", is_flag=True, help="计算种子选择结果，但不添加种子到本地")
-@click.option("-p", "--print", "print_scores", is_flag=True, help="显示新种子评分以及最终选择结果")
-@click.option("-f", "--free-only", is_flag=True, help="只会下载免费促销的种子")
-def automatic_download(dry_run: bool, print_scores: bool, free_only: bool):
-    """自动选择北邮人种子并在本地开始下载。"""
-    _commands.download(None, dry_run, print_scores, free_only)
-
-
-@main.command(name="fix")
-@click.option("-d", "--dry-run", is_flag=True, help="获取重命名列表，但不重命名")
-def fix(dry_run: bool):
-    """尝试修复 qBittorrent 中的任务名（也即给名称加上 ``[byr-北邮人ID]`` 的前缀）。"""
-    _commands.fix(dry_run)
-
-
-@do.command(name="download")
-@click.argument("seed", type=click.STRING, metavar="<北邮人链接或是种子 ID>")
-@click.option("-d", "--dry-run", is_flag=True, help="计算种子调整结果，但不添加种子到本地")
-@click.option("-p", "--paused", is_flag=True, help="使种子在添加后被暂停")
-@click.option("-e", "--exists", is_flag=True, help="告诉 qBittorrent 文件已经下载完毕并让其跳过哈希检查")
-def download(seed: str, dry_run: bool, paused: bool, exists: bool):
-    """下载特定种子，可能会删除其它种子腾出空间来满足下载需求。"""
-    _commands.download_one(seed, dry_run, paused, exists)
+byr = ByrCommand(ByrClient, ByrApi).register(main)
+tju = NexusCommand(TjuPtClient, TjuPtApi).register(main)
+bt = BtCommand(byr, tju).register(main)
+MainCommand(bt, byr, tju).register(main)
 
 
 @main.command(name="setup")
-def setup():
+@click.pass_context
+def setup_qbittorrent(ctx: click.Context):
     """下载并配置 qBittorrent-nox。"""
-    _commands.setup()
+    conf: GlobalConfig = ctx.obj["config"]
+    setup.setup(conf.require(str, "qbittorrent", "url"))
 
 
 def entry_point():
@@ -145,7 +75,7 @@ def entry_point():
     os.environ["LANGUAGE"] = "zh"
     # 想用 importlib 但似乎 gettext 不支持，希望没问题。
     gettext.bindtextdomain("messages", localedir=os.path.join(os.path.dirname(os.path.realpath(__file__)), "locales"))
-    main()
+    main(obj={})
 
 
 if __name__ == "__main__":

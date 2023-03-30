@@ -17,7 +17,7 @@
 
 from dataclasses import dataclass
 
-from byre import LocalTorrent, TorrentInfo
+from byre.clients.data import LocalTorrent, TorrentInfo
 
 
 @dataclass

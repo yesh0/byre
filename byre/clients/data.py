@@ -24,42 +24,45 @@ import qbittorrentapi
 
 
 @dataclass
-class ByrUser:
-    """一位北邮人用户。"""
+class NexusUser:
+    """一位 NexusPHP 站点用户。"""
 
-    user_id = 0
+    site: str
+    """NexusPHP 站点标签。"""
+
+    user_id: int = 0
     """用户 ID。"""
 
-    username = ""
+    username: str = ""
 
-    level = ""
+    level: str = ""
     """用户等级。"""
 
-    mana = 0.
+    mana: float = 0.
     """魔力值。"""
 
-    invitations = 0
+    invitations: int = 0
     """邀请数量。"""
 
-    ranking = 0
+    ranking: int = 0
     """上传排行。"""
 
-    ratio = -1.
+    ratio: float = -1.
     """分享率。"""
 
-    uploaded = 0.
+    uploaded: float = 0.
     """上传量（GB）。"""
 
-    downloaded = 0.
+    downloaded: float = 0.
     """下载量（GB）。"""
 
-    seeding = 0
+    seeding: int = 0
     """当前活动上传数。"""
 
-    downloading = 0
+    downloading: int = 0
     """当前活动下载数。"""
 
-    connectable = False
+    connectable: bool = False
     """用户客户端可连接状态。"""
 
 
@@ -74,6 +77,8 @@ CATEGORIES = {
     "资料": "Documents",
     "体育": "Sports",
     "纪录": "Documentaries",
+    # 北洋园特有类别。
+    "移动视频": "iPad",
 }
 
 PROMOTION_THIRTY_DOWN = "thirty_down"
@@ -150,6 +155,9 @@ class UserTorrentKind(enum.Enum):
 class TorrentInfo:
     """从北邮人上抓取来的种子信息。"""
 
+    site: str
+    """NexusPHP 站点标签。"""
+
     title: str
     """种子标题。"""
 
@@ -192,7 +200,7 @@ class TorrentInfo:
     comments: int
     """评论数。"""
 
-    uploader: ByrUser
+    uploader: NexusUser
     """上传者。"""
 
     uploaded: float
@@ -220,6 +228,9 @@ class LocalTorrent:
     seed_id: int
     """对应的北邮人种子 ID。"""
 
+    site: str
+    """站点标签。"""
+
     info: typing.Optional[TorrentInfo]
     """种子在北邮人上的信息。"""
 
@@ -228,6 +239,7 @@ class LocalTorrent:
         if self.info is not None:
             return self.info
         return TorrentInfo(
+            self.site,
             title=self.torrent.name,
             sub_title="",
             seed_id=self.seed_id,
@@ -242,7 +254,7 @@ class LocalTorrent:
             leechers=self.torrent.num_incomplete,
             finished=0,
             comments=0,
-            uploader=ByrUser(),
+            uploader=NexusUser(self.site),
             uploaded=self.torrent.uploaded / 1000 ** 3,
             downloaded=self.torrent.downloaded / 1000 ** 3,
             ratio=self.torrent.ratio,

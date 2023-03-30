@@ -41,11 +41,17 @@ Usage: byre [OPTIONS] COMMAND [ARGS]...
 
 ### 配置文件
 
-请见 [byre.example.toml](byre/byre.example.toml)，里面有比较详细的注释说明。总之需要填写：
+请见 [byre.example.toml](byre/commands/byre.example.toml)，里面有比较详细的注释说明。总之需要填写：
 - 北邮人用户名、密码
 - qBittorrent 用户名、密码、端口等
 - 下载位置
 - 最大允许的占用空间上限、一次下载量上限
+
+### FAQ
+
+1. 北洋园站点无法下载？
+
+   北洋园在第一次下载种子时会跳转到一个“第一次下载提示”页面，你需要手动去下载一个种子然后勾选“下次不再提示”。
 
 ## 愿望清单
 

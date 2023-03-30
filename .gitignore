@@ -160,6 +160,6 @@ cython_debug/
 .idea/
 
 # byre
-byr.cookies
+*.cookies
 byre.toml
 !byre/locales/zh/LC_MESSAGES/messages.mo

@@ -20,8 +20,9 @@ from urllib.parse import urlparse
 
 import qbittorrentapi
 
+import byre.clients
 from byre import utils
-from byre.data import LocalTorrent, TorrentInfo
+from byre.clients.data import LocalTorrent, TorrentInfo
 
 _logger = logging.getLogger("byre.bt")
 _debug, _info, _warning, _fatal = _logger.debug, _logger.info, _logger.warning, _logger.fatal
@@ -33,7 +34,9 @@ class BtClient:
     def __init__(self, url: str, download_dir: str) -> None:
         info = urlparse(url)
         scheme = info.scheme or "http"
+        #: 下载路径。
         self._dir = os.path.realpath(download_dir)
+        #: qBittorrent 连接。
         self.client = qbittorrentapi.Client(
             host=f"{scheme}://{info.hostname}",
             port=info.port,
@@ -76,7 +79,7 @@ class BtClient:
     def init_tags(self, reset=False) -> None:
         """创建（或删除）“byr”和“keep”标签。"""
         tags = self.client.torrents_tags()
-        for tag in ["byr", "keep"]:
+        for tag in [*byre.clients.SITES.keys(), "keep"]:
             if tag not in tags:
                 if not reset:
                     self.client.torrents_create_tags([tag])
@@ -88,18 +91,24 @@ class BtClient:
                 continue
             _debug("无需创建/删除“%s”", tag)
 
-    def add_torrent(self, torrent: bytes, info: TorrentInfo, paused=False, exists=False) -> None:
+    def add_torrent(self, torrent: bytes, info: TorrentInfo, paused: bool = False,
+                    exists: typing.Union[bool, LocalTorrent] = False) -> None:
         """添加种子并设置对应的类别和标签。"""
         title = self._generate_rename(info)
         _info("正在添加种子“%s”", title)
+        if isinstance(exists, LocalTorrent):
+            save_path = exists.torrent.save_path
+            _info("将种子设定保存路径设为 %s 并取消哈希检查", save_path)
+        else:
+            save_path = self._get_download_dir(info)
         self.client.torrents_add(
             torrent_files=torrent,
-            save_path=self._get_download_dir(info),
+            save_path=save_path,
             category=info.category,
-            is_skip_checking=exists,
+            is_skip_checking=bool(exists),
             is_paused=paused,
             rename=title,
-            tags=["byr"],
+            tags=[info.site],
         )
 
     def rename_torrent(self, torrent: LocalTorrent, info: TorrentInfo) -> None:
@@ -112,21 +121,39 @@ class BtClient:
         _info("正在删除种子“%s”", torrent.torrent.name)
         self.client.torrents_delete(delete_files=True, torrent_hashes=[torrent.torrent.hash])
 
-    def list_torrents(self, remote_torrents: list[TorrentInfo], wants_all=False) -> list[LocalTorrent]:
-        """列出所有本地带有“byr”标签且命名符合要求的种子。"""
+    def list_torrents(self, remote_torrents: list[TorrentInfo], wants_all=False,
+                      site: typing.Optional[str] = None) -> list[LocalTorrent]:
+        """列出所有本地带有对应 NexusPHP 标签且命名符合要求的种子。"""
+        if site is None:
+            if len(remote_torrents) != 0:
+                site = remote_torrents[0].site
+            else:
+                summed = []
+                for site in byre.clients.SITES.keys():
+                    summed.extend(self.list_torrents([], wants_all=wants_all, site=site))
+                return summed
         remote_mapping = dict((t.seed_id, t) for t in remote_torrents)
         torrents = []
-        for torrent in self.client.torrents_info(tag="byr"):
-            name: str = torrent["name"]
-            if name.startswith("[byr-"):
-                seed_id = utils.int_or(name[5:name.index("]")])
-                if seed_id != 0:
-                    torrents.append(LocalTorrent(torrent, seed_id, remote_mapping.get(seed_id, None)))
-                    continue
-            _warning("种子命名不符合要求：%s", name)
-            if wants_all:
-                torrents.append(LocalTorrent(torrent, 0, None))
+        for torrent in self.client.torrents_info(tag=site):
+            try:
+                local = self.local_torrent_from(torrent, site)
+                local.info = remote_mapping.get(local.seed_id, None)
+                torrents.append(local)
+            except ValueError as e:
+                _warning(e)
+                if wants_all:
+                    torrents.append(LocalTorrent(torrent, 0, site, None))
         return torrents
+
+    @classmethod
+    def local_torrent_from(cls, torrent: qbittorrentapi.TorrentDictionary, site: str):
+        name: str = torrent["name"]
+        prefix = f"[{site}-"
+        if name.startswith(prefix):
+            seed_id = utils.int_or(name[len(prefix):name.index("]")])
+            if seed_id != 0:
+                return LocalTorrent(torrent, seed_id, site, None)
+        raise ValueError(f"种子命名不符合要求：{name}")
 
     def _get_download_dir(self, torrent: TorrentInfo) -> str:
         """下载目录，由种子分类及二级分类决定。"""
@@ -135,4 +162,4 @@ class BtClient:
 
     @staticmethod
     def _generate_rename(info: TorrentInfo) -> str:
-        return f"[byr-{info.seed_id}]{info.title}"
+        return f"[{info.site}-{info.seed_id}]{info.title}"
