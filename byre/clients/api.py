@@ -97,14 +97,20 @@ class NexusApi(metaclass=ABCMeta):
         return int(parse_qs(urlparse(href).query)["id"][0])
 
     @staticmethod
-    def _extract_info_bar(user: NexusUser, page: bs4.Tag) -> None:
-        """从页面的用户信息栏提取一些信息（就不重复提取 `_extract_user_info` 能提取的了）。"""
-        # 北邮人是 `font.color_bonus` + “上传排行”，北洋园是 `span.color_active` + “上传排名”……
-        # 没想好怎么比较好地兼容不同的站点，总之先这样。
-        ranking_tag = next(tag for tag in page.select(f"#info_block *[class^=color_]") if "上传排" in tag.text)
-        ranking = ranking_tag.find_next(string=str.isdigit)
-        if ranking is not None:
-            user.ranking = int(ranking.text)
+    def _extract_info_bar_ranking(page: bs4.Tag) -> int:
+        """
+        从页面的用户信息栏提取一些信息（就不重复提取 `_extract_user_info` 能提取的了）。
+
+        排名部分北邮人是 `font.color_bonus` + “上传排行”，北洋园是 `span.color_active` + “上传排名”……
+        没想好怎么比较好地兼容不同的站点，总之这里写的是北邮人的版本，有需要的重载吧。
+        """
+        ranking_tag = next(tag for tag in page.select(f"#info_block font.color_bonus") if "上传排行" in tag.text)
+        ranking = ranking_tag.next_sibling.text.strip()
+        return int(ranking)
+
+    @classmethod
+    def _extract_info_bar(cls, user: NexusUser, page: bs4.Tag) -> None:
+        user.ranking = cls._extract_info_bar_ranking(page)
 
         up_arrow = page.select_one("#info_block img.arrowup[title=当前做种]")
         seeding = str("0" if up_arrow is None else up_arrow.next).strip()
