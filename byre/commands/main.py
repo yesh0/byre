@@ -25,6 +25,7 @@ import click
 from overrides import override
 
 from byre import scoring, planning
+from byre.clients import SITES
 from byre.clients.api import NexusSortableField
 from byre.clients.data import UserTorrentKind, TorrentInfo, LocalTorrent, TorrentPromotion, PROMOTION_FREE
 from byre.commands import pretty
@@ -104,12 +105,14 @@ class MainCommand(ConfigurableGroup):
 
     @click.command(name="download")
     @click.argument("seed", type=click.STRING, metavar="<北邮人链接或是种子 ID>")
+    @click.option("-a", "--at", default="byr", type=click.Choice(SITES.keys()), help="种子所在 PT 站点")
     @click.option("-d", "--dry-run", is_flag=True, help="计算种子调整结果，但不添加种子到本地")
     @click.option("-p", "--paused", is_flag=True, help="使种子在添加后被暂停")
     @click.option("-e", "--exists", is_flag=True, help="告诉 qBittorrent 文件已经下载完毕并让其跳过哈希检查")
     @click.option("-s", "--same", default="", type=click.STRING,
                   help="告诉 qBittorrent 该种子与这个哈希对应的北邮人种子的文件一模一样")
-    def download_one(self, seed: str, dry_run: bool, paused: bool, exists: typing.Union[bool, LocalTorrent], same: str):
+    def download_one(self, at: str, seed: str, dry_run: bool, paused: bool, exists: typing.Union[bool, LocalTorrent],
+                     same: str):
         """下载特定种子，可能会删除其它种子腾出空间来满足下载需求。"""
         seed_id = pretty.parse_url_id(seed)
         if same:
@@ -120,7 +123,8 @@ class MainCommand(ConfigurableGroup):
             if local[0].amount_left != 0:
                 raise RuntimeError(f"该 {same} 种子还在下载中，请下载完成后重试")
             exists = self.bt.api.local_torrent_from(local, "byr")
-        self.download(self.byr.torrent(seed_id), dry_run, paused=paused, exists=exists)
+        api = self.byr.api if at == "byr" else self.sites[at].api
+        self.download(api.torrent(seed_id), dry_run, paused=paused, exists=exists)
 
     @click.command
     @click.option("-d", "--dry-run", is_flag=True, help="计算种子下载结果，但不添加种子到本地")
