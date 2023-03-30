@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 import qbittorrentapi
 
 from byre import utils
-from byre.data import LocalTorrent, TorrentInfo
+from byre.clients.data import LocalTorrent, TorrentInfo
 
 _logger = logging.getLogger("byre.bt")
 _debug, _info, _warning, _fatal = _logger.debug, _logger.info, _logger.warning, _logger.fatal

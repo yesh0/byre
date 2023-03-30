@@ -17,4 +17,4 @@
 
 from byre.bt import *
 from byre.clients.byr import *
-from byre.data import *
+from byre.clients.data import *

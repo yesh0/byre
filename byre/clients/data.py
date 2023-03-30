@@ -24,8 +24,8 @@ import qbittorrentapi
 
 
 @dataclass
-class ByrUser:
-    """一位北邮人用户。"""
+class NexusUser:
+    """一位 NexusPHP 站点用户。"""
 
     user_id = 0
     """用户 ID。"""
@@ -192,7 +192,7 @@ class TorrentInfo:
     comments: int
     """评论数。"""
 
-    uploader: ByrUser
+    uploader: NexusUser
     """上传者。"""
 
     uploaded: float
@@ -242,7 +242,7 @@ class LocalTorrent:
             leechers=self.torrent.num_incomplete,
             finished=0,
             comments=0,
-            uploader=ByrUser(),
+            uploader=NexusUser(),
             uploaded=self.torrent.uploaded / 1000 ** 3,
             downloaded=self.torrent.downloaded / 1000 ** 3,
             ratio=self.torrent.ratio,

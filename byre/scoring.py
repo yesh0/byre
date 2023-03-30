@@ -20,8 +20,8 @@ import math
 import time
 from dataclasses import dataclass
 
-from byre.data import TorrentInfo, PROMOTION_TWO_UP, PROMOTION_FREE, PROMOTION_HALF_DOWN, PROMOTION_THIRTY_DOWN, \
-    LocalTorrent
+from byre.clients.data import TorrentInfo, PROMOTION_TWO_UP, PROMOTION_FREE, PROMOTION_HALF_DOWN, \
+    PROMOTION_THIRTY_DOWN, LocalTorrent
 
 
 def _piecewise_linear(points: list[tuple[float, float]], x: float) -> float:
