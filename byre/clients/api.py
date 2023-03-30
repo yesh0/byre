@@ -92,12 +92,12 @@ class NexusApi(metaclass=ABCMeta):
         self._user_id = user_id
         return user_id
 
-    @staticmethod
-    def extract_url_id(href: str) -> int:
+    @classmethod
+    def extract_url_id(cls, href: str) -> int:
         return int(parse_qs(urlparse(href).query)["id"][0])
 
-    @staticmethod
-    def _extract_info_bar_ranking(page: bs4.Tag) -> int:
+    @classmethod
+    def _extract_info_bar_ranking(cls, page: bs4.Tag) -> int:
         """
         从页面的用户信息栏提取一些信息（就不重复提取 `_extract_user_info` 能提取的了）。
 
@@ -152,8 +152,8 @@ class NexusApi(metaclass=ABCMeta):
             self._extract_info_bar(user, page)
         return user
 
-    @staticmethod
-    def _extract_user_info(user: NexusUser, info: dict[str, bs4.Tag]) -> None:
+    @classmethod
+    def _extract_user_info(cls, user: NexusUser, info: dict[str, bs4.Tag]) -> None:
         """从 `userdetails.php` 的最大的那个表格提取用户信息。"""
         if _LEVEL in info:
             level_img = info[_LEVEL].select_one("img")
@@ -269,8 +269,8 @@ class NexusApi(metaclass=ABCMeta):
             ratio_cell=7,
         )
 
-    @staticmethod
-    def _extract_promotion_info(title_cell: bs4.Tag) -> TorrentPromotion:
+    @classmethod
+    def _extract_promotion_info(cls, title_cell: bs4.Tag) -> TorrentPromotion:
         """
         提取表格中的促销/折扣信息。
 
@@ -306,8 +306,8 @@ class NexusApi(metaclass=ABCMeta):
                 return promotions
         return TorrentPromotion.NONE
 
-    @staticmethod
-    def _extract_tag(title_cell: bs4.Tag) -> TorrentTag:
+    @classmethod
+    def _extract_tag(cls, title_cell: bs4.Tag) -> TorrentTag:
         """提取站点对种子打的标签。"""
         selectors = {
             "font.hot": TorrentTag.TRENDING,
@@ -332,23 +332,23 @@ class NexusApi(metaclass=ABCMeta):
             user.username = "匿名"
         return user
 
-    @staticmethod
-    def _extract_page_subtitle(page: bs4.Tag) -> str:
+    @classmethod
+    def _extract_page_subtitle(cls, page: bs4.Tag) -> str:
         return page.select_one("#subtitle").get_text(strip=True)
 
-    @staticmethod
-    def _extract_page_categories(page: bs4.Tag) -> tuple[str, str]:
+    @classmethod
+    def _extract_page_categories(cls, page: bs4.Tag) -> tuple[str, str]:
         cat = page.select_one("span#type").text.strip()
         sec_type = page.select_one("span#sec_type")
         sec_cat = sec_type.text.strip() if sec_type is not None else "其它"
         return cat, sec_cat
 
-    @staticmethod
-    def _extract_page_size(page: bs4.Tag) -> float:
+    @classmethod
+    def _extract_page_size(cls, page: bs4.Tag) -> float:
         return utils.convert_nexus_size(page.select_one("span#type").parent.find(text=re.compile("\\d")).text)
 
-    @staticmethod
-    def _extract_page_upload_time(page: bs4.Tag) -> datetime.datetime:
+    @classmethod
+    def _extract_page_upload_time(cls, page: bs4.Tag) -> datetime.datetime:
         return datetime.datetime.fromisoformat(page.select_one("span[title]").attrs["title"])
 
     def _extract_torrent_table(self, rows: bs4.element.ResultSet[bs4.Tag],
@@ -438,8 +438,8 @@ class NexusApi(metaclass=ABCMeta):
             ))
         return torrents
 
-    @staticmethod
-    def _extract_updated_at(cells: bs4.element.ResultSet[bs4.Tag],
+    @classmethod
+    def _extract_updated_at(cls, cells: bs4.element.ResultSet[bs4.Tag],
                             live_time_cell: typing.Optional[int]) -> datetime.datetime:
         return (
             datetime.datetime.fromisoformat(cells[live_time_cell].select_one("span").attrs["title"])
