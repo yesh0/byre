@@ -135,17 +135,25 @@ class BtClient:
         remote_mapping = dict((t.seed_id, t) for t in remote_torrents)
         torrents = []
         for torrent in self.client.torrents_info(tag=site):
-            name: str = torrent["name"]
-            prefix = f"[{site}-"
-            if name.startswith(prefix):
-                seed_id = utils.int_or(name[len(prefix):name.index("]")])
-                if seed_id != 0:
-                    torrents.append(LocalTorrent(torrent, seed_id, site, remote_mapping.get(seed_id, None)))
-                    continue
-            _warning("种子命名不符合要求：%s", name)
-            if wants_all:
-                torrents.append(LocalTorrent(torrent, 0, site, None))
+            try:
+                local = self.local_torrent_from(torrent, site)
+                local.info = remote_mapping.get(local.seed_id, None)
+                torrents.append(local)
+            except ValueError as e:
+                _warning(e)
+                if wants_all:
+                    torrents.append(LocalTorrent(torrent, 0, site, None))
         return torrents
+
+    @classmethod
+    def local_torrent_from(cls, torrent: qbittorrentapi.TorrentDictionary, site: str):
+        name: str = torrent["name"]
+        prefix = f"[{site}-"
+        if name.startswith(prefix):
+            seed_id = utils.int_or(name[len(prefix):name.index("]")])
+            if seed_id != 0:
+                return LocalTorrent(torrent, seed_id, site, None)
+        raise ValueError(f"种子命名不符合要求：{name}")
 
     def _get_download_dir(self, torrent: TorrentInfo) -> str:
         """下载目录，由种子分类及二级分类决定。"""

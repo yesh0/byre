@@ -107,9 +107,19 @@ class MainCommand(ConfigurableGroup):
     @click.option("-d", "--dry-run", is_flag=True, help="计算种子调整结果，但不添加种子到本地")
     @click.option("-p", "--paused", is_flag=True, help="使种子在添加后被暂停")
     @click.option("-e", "--exists", is_flag=True, help="告诉 qBittorrent 文件已经下载完毕并让其跳过哈希检查")
-    def download_one(self, seed: str, dry_run: bool, paused: bool, exists: bool):
+    @click.option("-s", "--same", default="", type=click.STRING,
+                  help="告诉 qBittorrent 该种子与这个哈希对应的北邮人种子的文件一模一样")
+    def download_one(self, seed: str, dry_run: bool, paused: bool, exists: typing.Union[bool, LocalTorrent], same: str):
         """下载特定种子，可能会删除其它种子腾出空间来满足下载需求。"""
         seed_id = pretty.parse_url_id(seed)
+        if same:
+            # 原本应该 BtClient 再封装一下的，但是懒。
+            local = self.bt.api.client.torrents_info(torrent_hashes=[same])
+            if len(local) == 0:
+                raise ValueError(f"不存在哈希为 {same} 的种子")
+            if local[0].amount_left != 0:
+                raise RuntimeError(f"该 {same} 种子还在下载中，请下载完成后重试")
+            exists = self.bt.api.local_torrent_from(local, "byr")
         self.download(self.byr.torrent(seed_id), dry_run, paused=paused, exists=exists)
 
     @click.command
@@ -143,6 +153,7 @@ class MainCommand(ConfigurableGroup):
 
             def __len__(self):
                 return len(self.torrents)
+
         local_byr = SizeSearchable(byr_torrents)
         matches = []
         for name, existing in existing_seeds.items():
@@ -160,9 +171,9 @@ class MainCommand(ConfigurableGroup):
                 if torrent.seed_id in existing_set:
                     continue
                 # 只匹配总大小误差在 ~0.03 GB 范围内的种子。
-                i = bisect.bisect_left(local_byr, (torrent.file_size - 0.03) * 1000**3)
+                i = bisect.bisect_left(local_byr, (torrent.file_size - 0.03) * 1000 ** 3)
                 for local in byr_torrents[i:]:
-                    if (torrent.file_size + 0.03) * 1000**3 < local.torrent.size:
+                    if (torrent.file_size + 0.03) * 1000 ** 3 < local.torrent.size:
                         break
                     # 最严格的是一个一个区块的哈希比较，但是可能会有重新做种块大小改变的情况。
                     # 总之这些 PT 站还是比较严格的，文件名大概率有格式可寻，不同种子文件名不同，
