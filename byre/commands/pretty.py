@@ -99,7 +99,7 @@ def pretty_local_torrents(torrents: list[LocalTorrent], speed=False):
             click.style(f"{t.torrent.ratio:.2f}", fg="bright_yellow"),
         ))
         table.append((
-            "",
+            click.style(t.site, fg="bright_cyan"),
             click.style(t.torrent.hash, dim=True)
             + " (" + click.style(f"{t.torrent.num_complete}↑", fg="bright_green")
             + " " + click.style(f"{t.torrent.num_incomplete}↓", fg="cyan") + " )",
