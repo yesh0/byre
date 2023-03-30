@@ -28,7 +28,7 @@ import tomli
 
 import byre.setup
 from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, NexusSortableField, UserTorrentKind, \
-    LocalTorrent, planning, scoring, PROMOTION_FREE, CATEGORIES
+    LocalTorrent, planning, scoring, PROMOTION_FREE, CATEGORIES, NexusApi
 
 _logger = logging.getLogger("byre.commands")
 _debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
@@ -39,30 +39,26 @@ class GlobalConfig(click.ParamType):
 
     name = "配置文件路径"
 
-    config: dict[str, typing.Any] = None
+    def __init__(self):
+        self.config: typing.Optional[dict[str, typing.Any]] = None
 
-    byr_credentials = ("", "", "")
+        self.byr_credentials = ("", "", "")
+        self.byr_proxy = ""
 
-    byr_proxy = ""
+        self.qbittorrent_url = ""
+        self.download_dir = ""
 
-    qbittorrent_url = ""
+        self.free_weight = 0.
+        self.cost_recovery_days = 0.
+        self.removal_exemption_days = 0.
 
-    download_dir = ""
+        self.max_total_size = 0.
+        self.max_download_size = 0.
 
-    free_weight = 0.
-
-    cost_recovery_days = 0.
-
-    removal_exemption_days = 0.
-
-    max_total_size = 0.
-
-    max_download_size = 0.
-
-    byr: ByrApi = None
-    bt: BtClient = None
-    planner: planning.Planner = None
-    scorer: scoring.Scorer = None
+        self.byr: typing.Optional[ByrApi] = None
+        self.bt: typing.Optional[BtClient] = None
+        self.planner: typing.Optional[planning.Planner] = None
+        self.scorer: typing.Optional[scoring.Scorer] = None
 
     def convert(self, value: str, param, ctx):
         if not value:
@@ -442,7 +438,7 @@ class GlobalConfig(click.ParamType):
         if s.isdigit():
             return int(s)
         else:
-            return ByrApi.extract_url_id(s)
+            return NexusApi.extract_url_id(s)
 
     def _gather_local_info(self):
         _info("正在合并远端种子列表和本地种子列表信息")

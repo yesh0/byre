@@ -33,7 +33,9 @@ class BtClient:
     def __init__(self, url: str, download_dir: str) -> None:
         info = urlparse(url)
         scheme = info.scheme or "http"
+        #: 下载路径。
         self._dir = os.path.realpath(download_dir)
+        #: qBittorrent 连接。
         self.client = qbittorrentapi.Client(
             host=f"{scheme}://{info.hostname}",
             port=info.port,

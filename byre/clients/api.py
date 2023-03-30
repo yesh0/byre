@@ -65,14 +65,11 @@ class NexusApi(metaclass=ABCMeta):
     尽量把不同站点可以自定义的地方都给提取出单独的函数了，但说不准。
     """
 
-    client: NexusClient
-    """登录的会话。"""
-
-    _user_id = 0
-    """当前登录用户 ID。"""
-
     def __init__(self, client: NexusClient) -> None:
+        #: 登录的会话。
         self.client = client
+        #: 当前登录用户 ID。
+        self._user_id = 0
         if not client.is_logged_in():
             client.login()
 

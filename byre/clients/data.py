@@ -27,39 +27,39 @@ import qbittorrentapi
 class NexusUser:
     """一位 NexusPHP 站点用户。"""
 
-    user_id = 0
+    user_id: int = 0
     """用户 ID。"""
 
-    username = ""
+    username: str = ""
 
-    level = ""
+    level: str = ""
     """用户等级。"""
 
-    mana = 0.
+    mana: float = 0.
     """魔力值。"""
 
-    invitations = 0
+    invitations: int = 0
     """邀请数量。"""
 
-    ranking = 0
+    ranking: int = 0
     """上传排行。"""
 
-    ratio = -1.
+    ratio: float = -1.
     """分享率。"""
 
-    uploaded = 0.
+    uploaded: float = 0.
     """上传量（GB）。"""
 
-    downloaded = 0.
+    downloaded: float = 0.
     """下载量（GB）。"""
 
-    seeding = 0
+    seeding: int = 0
     """当前活动上传数。"""
 
-    downloading = 0
+    downloading: int = 0
     """当前活动下载数。"""
 
-    connectable = False
+    connectable: bool = False
     """用户客户端可连接状态。"""
 
 

@@ -35,21 +35,6 @@ class NexusClient(metaclass=ABCMeta):
     登录并获取 Cookies 部分不同站点需要不同实现。
     """
 
-    username: str
-    """站点登录用户名。"""
-
-    password: str
-    """站点登录密码。"""
-
-    _cookie_file: str
-    """登录会话的 Cookies 缓存文件。"""
-
-    _retry_delay: float
-    """请求重试的等待间隔（秒）。"""
-
-    _session: requests.Session
-    """会话。"""
-
     def __init__(
             self,
             username: str,
@@ -58,10 +43,15 @@ class NexusClient(metaclass=ABCMeta):
             retry_delay: float = 1.,
             proxies: typing.Optional[dict[str, str]] = None
     ) -> None:
+        #: 站点登录用户名。
         self.username = username
+        #: 站点登录密码。
         self.password = password
+        #: 登录会话的 Cookies 缓存文件。
         self._cookie_file = cookie_file
+        #: 请求重试的等待间隔（秒）。
         self._retry_delay = retry_delay
+        #: 会话。
         self._session = requests.Session()
         if proxies is not None:
             self._session.proxies.update(proxies)

@@ -16,6 +16,7 @@
 """提供北邮人 PT 站的部分读取 API 接口。"""
 
 import logging
+import typing
 
 from overrides import override
 
@@ -30,8 +31,17 @@ _debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
 class ByrClient(NexusClient):
     """封装了 `requests.Session`，负责登录、管理会话、发起请求。"""
 
-    _decaptcha = None
-    """验证码自动识别模块（采用懒加载所以没有附上类型信息）。"""
+    def __init__(
+            self,
+            username: str,
+            password: str,
+            cookie_file: str,
+            retry_delay: float = 1.,
+            proxies: typing.Optional[dict[str, str]] = None
+    ) -> None:
+        super().__init__(username, password, cookie_file, retry_delay, proxies)
+        #: 验证码自动识别模块（采用懒加载所以没有附上类型信息）。
+        self._decaptcha = None
 
     @override
     def _get_url(self, path: str) -> str:
