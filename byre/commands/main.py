@@ -122,8 +122,12 @@ class MainCommand(ConfigurableGroup):
                 raise ValueError(f"不存在哈希为 {same} 的种子")
             if local[0].amount_left != 0:
                 raise RuntimeError(f"该 {same} 种子还在下载中，请下载完成后重试")
-            exists = self.bt.api.local_torrent_from(local, "byr")
-        api = self.byr.api if at == "byr" else self.sites[at].api
+            exists = self.bt.api.local_torrent_from(local[0], "byr")
+        if at == "byr":
+            api = self.byr.api
+        else:
+            self.sites[at].configure(self.config)
+            api = self.sites[at].api
         self.download(api.torrent(seed_id), dry_run, paused=paused, exists=exists)
 
     @click.command
@@ -236,8 +240,13 @@ class MainCommand(ConfigurableGroup):
                 self.bt.api.remove_torrent(t)
                 time.sleep(0.5)
             for t in downloadable:
-                _info("正在添加下载：[byr-%d]%s", t.seed_id, t.title)
-                torrent = self.byr.api.download_torrent(t.seed_id)
+                _info("正在添加下载：[%s-%d]%s", t.site, t.seed_id, t.title)
+                if t.site == "byr":
+                    api = self.byr.api
+                else:
+                    self.sites[t.site].configure(self.config)
+                    api = self.sites[t.site].api
+                torrent = api.download_torrent(t.seed_id)
                 self.bt.api.add_torrent(torrent, t, paused=paused, exists=exists)
                 time.sleep(0.5)
 
