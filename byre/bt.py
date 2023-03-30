@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 
 import qbittorrentapi
 
+import byre.clients
 from byre import utils
 from byre.clients.data import LocalTorrent, TorrentInfo
 
@@ -78,7 +79,7 @@ class BtClient:
     def init_tags(self, reset=False) -> None:
         """创建（或删除）“byr”和“keep”标签。"""
         tags = self.client.torrents_tags()
-        for tag in ["byr", "keep"]:
+        for tag in [*byre.clients.sites.keys(), "keep"]:
             if tag not in tags:
                 if not reset:
                     self.client.torrents_create_tags([tag])
@@ -101,7 +102,7 @@ class BtClient:
             is_skip_checking=exists,
             is_paused=paused,
             rename=title,
-            tags=["byr"],
+            tags=[info.site],
         )
 
     def rename_torrent(self, torrent: LocalTorrent, info: TorrentInfo) -> None:
@@ -114,20 +115,30 @@ class BtClient:
         _info("正在删除种子“%s”", torrent.torrent.name)
         self.client.torrents_delete(delete_files=True, torrent_hashes=[torrent.torrent.hash])
 
-    def list_torrents(self, remote_torrents: list[TorrentInfo], wants_all=False) -> list[LocalTorrent]:
-        """列出所有本地带有“byr”标签且命名符合要求的种子。"""
+    def list_torrents(self, remote_torrents: list[TorrentInfo], wants_all=False,
+                      site: typing.Optional[str] = None) -> list[LocalTorrent]:
+        """列出所有本地带有对应 NexusPHP 标签且命名符合要求的种子。"""
+        if site is None:
+            if len(remote_torrents) != 0:
+                site = remote_torrents[0].site
+            else:
+                summed = []
+                for site in byre.clients.sites.keys():
+                    summed.extend(self.list_torrents([], wants_all=wants_all, site=site))
+                return summed
         remote_mapping = dict((t.seed_id, t) for t in remote_torrents)
         torrents = []
-        for torrent in self.client.torrents_info(tag="byr"):
+        for torrent in self.client.torrents_info(tag=site):
             name: str = torrent["name"]
-            if name.startswith("[byr-"):
-                seed_id = utils.int_or(name[5:name.index("]")])
+            prefix = f"[{site}-"
+            if name.startswith(prefix):
+                seed_id = utils.int_or(name[len(prefix):name.index("]")])
                 if seed_id != 0:
-                    torrents.append(LocalTorrent(torrent, seed_id, remote_mapping.get(seed_id, None)))
+                    torrents.append(LocalTorrent(torrent, seed_id, site, remote_mapping.get(seed_id, None)))
                     continue
             _warning("种子命名不符合要求：%s", name)
             if wants_all:
-                torrents.append(LocalTorrent(torrent, 0, None))
+                torrents.append(LocalTorrent(torrent, 0, site, None))
         return torrents
 
     def _get_download_dir(self, torrent: TorrentInfo) -> str:
@@ -137,4 +148,4 @@ class BtClient:
 
     @staticmethod
     def _generate_rename(info: TorrentInfo) -> str:
-        return f"[byr-{info.seed_id}]{info.title}"
+        return f"[{info.site}-{info.seed_id}]{info.title}"

@@ -27,6 +27,9 @@ import qbittorrentapi
 class NexusUser:
     """一位 NexusPHP 站点用户。"""
 
+    site: str
+    """NexusPHP 站点标签。"""
+
     user_id: int = 0
     """用户 ID。"""
 
@@ -152,6 +155,9 @@ class UserTorrentKind(enum.Enum):
 class TorrentInfo:
     """从北邮人上抓取来的种子信息。"""
 
+    site: str
+    """NexusPHP 站点标签。"""
+
     title: str
     """种子标题。"""
 
@@ -222,6 +228,9 @@ class LocalTorrent:
     seed_id: int
     """对应的北邮人种子 ID。"""
 
+    site: str
+    """站点标签。"""
+
     info: typing.Optional[TorrentInfo]
     """种子在北邮人上的信息。"""
 
@@ -230,6 +239,7 @@ class LocalTorrent:
         if self.info is not None:
             return self.info
         return TorrentInfo(
+            self.site,
             title=self.torrent.name,
             sub_title="",
             seed_id=self.seed_id,
@@ -244,7 +254,7 @@ class LocalTorrent:
             leechers=self.torrent.num_incomplete,
             finished=0,
             comments=0,
-            uploader=NexusUser(),
+            uploader=NexusUser(self.site),
             uploaded=self.torrent.uploaded / 1000 ** 3,
             downloaded=self.torrent.downloaded / 1000 ** 3,
             ratio=self.torrent.ratio,

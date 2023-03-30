@@ -14,3 +14,13 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """各种 NexusPHP 站点的客户端。"""
+
+import byre.clients.byr
+import byre.clients.tju
+
+apis = [
+    byre.clients.byr.ByrApi,
+    byre.clients.tju.TjuPtApi,
+]
+
+sites = dict((api.site(), api) for api in apis)

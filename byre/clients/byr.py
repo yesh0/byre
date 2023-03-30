@@ -89,6 +89,10 @@ class ByrClient(NexusClient):
 class ByrApi(NexusApi):
     """北邮人 PT 站爬虫，提供站点部分信息的读取 API。"""
 
+    @classmethod
+    def site(cls) -> str:
+        return "byr"
+
     @override
     def list_torrents(self, page: int = 0,
                       sorted_by: NexusSortableField = NexusSortableField.ID,

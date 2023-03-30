@@ -65,6 +65,11 @@ class NexusApi(metaclass=ABCMeta):
     尽量把不同站点可以自定义的地方都给提取出单独的函数了，但说不准。
     """
 
+    @classmethod
+    @abstractmethod
+    def site(cls) -> str:
+        """返回 NexusPHP 站点标签。"""
+
     def __init__(self, client: NexusClient) -> None:
         #: 登录的会话。
         self.client = client
@@ -131,12 +136,8 @@ class NexusApi(metaclass=ABCMeta):
             user_id = self.current_user_id()
 
         page = self.client.get_soup(f"userdetails.php?id={user_id}")
-        user = NexusUser()
-
-        user.user_id = user_id
-
         name = page.find("h1")
-        user.username = "" if name is None else name.get_text(strip=True)
+        user = NexusUser(self.site(), user_id=user_id, username="" if name is None else name.get_text(strip=True))
 
         info_entries = page.select("td.embedded>table>tr")
         # 页面上表格分两列，第一列数据名称，第二列数据；提取成 dict。
@@ -219,6 +220,7 @@ class NexusApi(metaclass=ABCMeta):
             hs = hash_field[0].next_sibling.text.strip() if hash_field[0].next_sibling is not None else ""
 
         return TorrentInfo(
+            site=self.site(),
             title=title,
             sub_title=subtitle,
             seed_id=seed_id,
@@ -321,7 +323,7 @@ class NexusApi(metaclass=ABCMeta):
 
     @classmethod
     def _extract_user_from_a(cls, cell: bs4.Tag) -> NexusUser:
-        user = NexusUser()
+        user = NexusUser(cls.site())
         user_cell = cell.select_one("a[href^=userdetails]")
         if user_cell is not None:
             user.user_id, user.username = (
@@ -390,7 +392,7 @@ class NexusApi(metaclass=ABCMeta):
             if uploader_cell is not None:
                 user = self._extract_user_from_a(cells[uploader_cell])
             else:
-                user = NexusUser()
+                user = NexusUser(self.site())
 
             # 标题需要一点特殊处理。
             title_cell = cells[1]
@@ -416,6 +418,7 @@ class NexusApi(metaclass=ABCMeta):
                 hs = ""
 
             torrents.append(TorrentInfo(
+                site=self.site(),
                 title=title,
                 sub_title=subtitle,
                 seed_id=byr_id,

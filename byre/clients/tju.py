@@ -53,6 +53,10 @@ class TjuPtClient(NexusClient):
 class TjuPtApi(NexusApi):
     """北洋园 API。"""
 
+    @classmethod
+    def site(cls) -> str:
+        return "tju"
+
     @override
     def list_torrents(self, page: int = 0,
                       sorted_by: NexusSortableField = NexusSortableField.ID,
