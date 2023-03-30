@@ -70,6 +70,11 @@ class NexusApi(metaclass=ABCMeta):
     def site(cls) -> str:
         """返回 NexusPHP 站点标签。"""
 
+    @classmethod
+    @abstractmethod
+    def name(cls) -> str:
+        """返回可读的站点名字。"""
+
     def __init__(self, client: NexusClient) -> None:
         #: 登录的会话。
         self.client = client

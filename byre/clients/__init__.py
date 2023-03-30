@@ -15,12 +15,12 @@
 
 """各种 NexusPHP 站点的客户端。"""
 
-import byre.clients.byr
-import byre.clients.tju
+import byre.clients.byr as byr
+import byre.clients.tju as tju
 
 apis = [
-    byre.clients.byr.ByrApi,
-    byre.clients.tju.TjuPtApi,
+    byr.ByrApi,
+    tju.TjuPtApi,
 ]
 
 sites = dict((api.site(), api) for api in apis)

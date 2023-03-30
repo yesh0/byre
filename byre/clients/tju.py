@@ -19,7 +19,8 @@ import typing
 import bs4
 from overrides import override
 
-from byre import NexusApi, utils
+from byre import utils
+from byre.clients.api import NexusApi
 from byre.clients.byr import NexusSortableField, TorrentInfo
 from byre.clients.client import NexusClient
 
@@ -54,6 +55,12 @@ class TjuPtApi(NexusApi):
     """北洋园 API。"""
 
     @classmethod
+    @override
+    def name(cls) -> str:
+        return "北洋园 PT 站"
+
+    @classmethod
+    @override
     def site(cls) -> str:
         return "tju"
 

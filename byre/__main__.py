@@ -21,8 +21,9 @@ import typing
 
 import click
 
-from byre import TorrentPromotion, UserTorrentKind, utils
+from byre import utils
 from byre.clients.api import NexusSortableField
+from byre.clients.data import TorrentPromotion, UserTorrentKind
 from byre.commands import GlobalConfig
 
 _commands: typing.Optional[GlobalConfig] = None

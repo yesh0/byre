@@ -90,6 +90,12 @@ class ByrApi(NexusApi):
     """北邮人 PT 站爬虫，提供站点部分信息的读取 API。"""
 
     @classmethod
+    @override
+    def name(cls) -> str:
+        return "北邮人 PT 站"
+
+    @classmethod
+    @override
     def site(cls) -> str:
         return "byr"
 

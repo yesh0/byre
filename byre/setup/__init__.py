@@ -27,7 +27,7 @@ from urllib.parse import urlparse
 import click
 import requests
 
-from byre import BtClient
+from byre.bt import BtClient
 
 _QBITTORRENT_SIZE = "qbittorrent.size"
 

@@ -26,9 +26,11 @@ import click
 import tabulate
 import tomli
 
-import byre.setup
-from byre import ByrApi, BtClient, ByrClient, TorrentPromotion, TorrentInfo, NexusSortableField, UserTorrentKind, \
-    LocalTorrent, planning, scoring, PROMOTION_FREE, CATEGORIES, NexusApi
+from byre import planning, scoring, setup
+from byre.bt import BtClient
+from byre.clients.api import NexusSortableField, NexusApi
+from byre.clients.byr import ByrApi, ByrClient
+from byre.clients.data import CATEGORIES, TorrentPromotion, UserTorrentKind, TorrentInfo, LocalTorrent, PROMOTION_FREE
 
 _logger = logging.getLogger("byre.commands")
 _debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
@@ -129,7 +131,7 @@ class GlobalConfig(click.ParamType):
                                             max_download_size=self.max_download_size)
 
     def setup(self):
-        byre.setup.setup(self.qbittorrent_url)
+        setup.setup(self.qbittorrent_url)
 
     def display_torrent_info(self, seed: str):
         seed_id = self._parse_seed_id(seed)

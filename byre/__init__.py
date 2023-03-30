@@ -14,7 +14,3 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """提供北邮人 PT 站的部分读取 API 以及其与 BT 客户端的接口。"""
-
-from byre.bt import *
-from byre.clients.byr import *
-from byre.clients.data import *
