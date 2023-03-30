@@ -26,7 +26,7 @@ import bs4
 
 from byre import utils
 from byre.clients.client import NexusClient
-from byre.clients.data import NexusUser, TorrentInfo, TorrentPromotion, TorrentTag
+from byre.clients.data import NexusUser, TorrentInfo, TorrentPromotion, TorrentTag, UserTorrentKind
 
 _logger = logging.getLogger("byre.clients.api")
 _debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
@@ -238,6 +238,35 @@ class NexusApi(metaclass=ABCMeta):
             downloaded=0.,
             ratio=0.,
             hash=hs,
+        )
+
+    def download_torrent(self, seed_id: int) -> bytes:
+        res = self.client.get(f"download.php?id={seed_id}")
+        return res.content
+
+    def list_user_torrents(self, kind: UserTorrentKind = UserTorrentKind.SEEDING) -> list[TorrentInfo]:
+        """从 Ajax API 获取用户正在上传的种子列表。"""
+        # noinspection SpellCheckingInspection
+        page = self.client.get_soup(
+            f"getusertorrentlistajax.php?userid={self.current_user_id()}&type={kind.name.lower()}")
+        if kind != UserTorrentKind.SEEDING:
+            # 其它表格基本只有类型和标题两列信息有用
+            return self._extract_torrent_table(page.select("table > tr")[1:], *([None] * 10))
+        # 上传种子表格的格式：
+        #   0     1     2      3       4       5       6       7
+        # 类型、题目、大小、做种数、下载数、上传量、下载量、分享率
+        return self._extract_torrent_table(
+            page.select("table > tr")[1:],
+            comment_cell=None,
+            live_time_cell=None,
+            size_cell=2,
+            seeder_cell=3,
+            leecher_cell=4,
+            finished_cell=None,
+            uploader_cell=None,
+            uploaded_cell=5,
+            downloaded_cell=6,
+            ratio_cell=7,
         )
 
     @staticmethod
