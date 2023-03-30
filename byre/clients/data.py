@@ -74,6 +74,8 @@ CATEGORIES = {
     "资料": "Documents",
     "体育": "Sports",
     "纪录": "Documentaries",
+    # 北洋园特有类别。
+    "移动视频": "iPad",
 }
 
 PROMOTION_THIRTY_DOWN = "thirty_down"
