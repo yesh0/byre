@@ -14,12 +14,14 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import pprint
 import shutil
 import tempfile
 import unittest
 
 # noinspection PyUnresolvedReferences
 import context
+from byre.clients.data import UserTorrentKind
 from byre.clients.tju import TjuPtClient, TjuPtApi
 
 
@@ -70,6 +72,15 @@ class TjuPtClientTestCase(unittest.TestCase):
         torrents = api.list_torrents()
         self.assertNotEqual(0, len(torrents))
         self.assertTrue(any(0 < t.live_time < 3 for t in torrents))
+        shutil.rmtree(path)
+
+    def test_user_torrent_listing(self):
+        path = tempfile.mkdtemp()
+        client = login(path)
+        api = TjuPtApi(client)
+        torrents = api.list_user_torrents(UserTorrentKind.COMPLETED)
+        self.assertNotEqual(0, len(torrents))
+        pprint.pprint(torrents)
         shutil.rmtree(path)
 
 

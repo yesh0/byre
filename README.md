@@ -41,7 +41,7 @@ Usage: byre [OPTIONS] COMMAND [ARGS]...
 
 ### 配置文件
 
-请见 [byre.example.toml](byre/byre.example.toml)，里面有比较详细的注释说明。总之需要填写：
+请见 [byre.example.toml](byre/commands/byre.example.toml)，里面有比较详细的注释说明。总之需要填写：
 - 北邮人用户名、密码
 - qBittorrent 用户名、密码、端口等
 - 下载位置
