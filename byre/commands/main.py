@@ -13,12 +13,14 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import bisect
 import logging
 import math
 import re
 import time
 import typing
 
+import bencoder
 import click
 from overrides import override
 
@@ -28,14 +30,14 @@ from byre.clients.data import UserTorrentKind, TorrentInfo, LocalTorrent, Torren
 from byre.commands import pretty
 from byre.commands.bt import BtCommand
 from byre.commands.config import GlobalConfig, ConfigurableGroup
-from byre.commands.nexus import ByrCommand
+from byre.commands.nexus import ByrCommand, NexusCommand
 
 _logger = logging.getLogger("byre.commands.main")
 _debug, _info = _logger.debug, _logger.info
 
 
 class MainCommand(ConfigurableGroup):
-    def __init__(self, bt: BtCommand, byr: ByrCommand):
+    def __init__(self, bt: BtCommand, byr: ByrCommand, *sites: NexusCommand):
         super().__init__(
             name="do",
             help="综合 PT 站点与本地的命令，主要功能所在。",
@@ -43,6 +45,7 @@ class MainCommand(ConfigurableGroup):
         )
         self.bt = bt
         self.byr = byr
+        self.sites = dict((site.api_cls.site(), site) for site in sites)
         self.config: typing.Optional[GlobalConfig] = None
         self.planner: typing.Optional[planning.Planner] = None
         self.scorer: typing.Optional[scoring.Scorer] = None
@@ -109,6 +112,78 @@ class MainCommand(ConfigurableGroup):
         seed_id = pretty.parse_url_id(seed)
         self.download(self.byr.torrent(seed_id), dry_run, paused=paused, exists=exists)
 
+    @click.command
+    @click.option("-d", "--dry-run", is_flag=True, help="计算种子下载结果，但不添加种子到本地")
+    def hitchhike(self, dry_run: bool):
+        """
+        搭便车，尝试寻找从北邮人站下载下来的、其它站点也有的种子，同时做种。
+
+        注意：开始同时做种之后，北邮人的对应种子会被标记上“keep”，防止文件被删除。
+        因此这部分目前还需要手动管理。
+        """
+        for site in self.sites.values():
+            site.configure(self.config)
+
+        # 本地种子分站点放好。
+        torrents = self.bt.api.list_torrents([], wants_all=False, site=None)
+        byr_torrents = [t for t in torrents if t.site == "byr" and t.torrent.amount_left == 0]
+        byr_torrents.sort(key=lambda t: t.torrent.size)
+        existing_seeds: dict[str, list[int]] = dict((name, []) for name in self.sites.keys())
+        for t in torrents:
+            if t.site != "byr":
+                existing_seeds[t.site].append(t.seed_id)
+
+        # 用 bisect 按照 torrent.torrent.size 来查找种子。
+        class SizeSearchable(typing.Sequence):
+            def __init__(self, ts: list[LocalTorrent]):
+                self.torrents = ts
+
+            def __getitem__(self, item):
+                return self.torrents[item].torrent.size
+
+            def __len__(self):
+                return len(self.torrents)
+        local_byr = SizeSearchable(byr_torrents)
+        matches = []
+        for name, existing in existing_seeds.items():
+            api = self.sites[name].api
+            page = []
+            time.sleep(0.5)
+            page.extend(api.list_torrents(0))
+            time.sleep(0.5)
+            page.extend(api.list_torrents(0, NexusSortableField.LEECHER_COUNT))
+            time.sleep(0.5)
+            page.extend(api.list_torrents(0, NexusSortableField.SEEDER_COUNT))
+            page.sort(key=lambda t: t.file_size)
+            existing_set = set(existing)
+            for torrent in page:
+                if torrent.seed_id in existing_set:
+                    continue
+                # 只匹配总大小误差在 ~0.03 GB 范围内的种子。
+                i = bisect.bisect_left(local_byr, (torrent.file_size - 0.03) * 1000**3)
+                for local in byr_torrents[i:]:
+                    if (torrent.file_size + 0.03) * 1000**3 < local.torrent.size:
+                        break
+                    # 最严格的是一个一个区块的哈希比较，但是可能会有重新做种块大小改变的情况。
+                    # 总之这些 PT 站还是比较严格的，文件名大概率有格式可寻，不同种子文件名不同，
+                    # 因此比较文件名、文件大小应该可以保证是同一个种子。
+                    if self._match_words(local.torrent.name, torrent.title):
+                        _debug("关键词提取匹配了 %s 和 %s", local.torrent.name, torrent.title)
+                        local_files = dict((file.name, file.size) for file in local.torrent.files)
+                        remote_content = api.download_torrent(torrent.seed_id)
+                        remote_files = dict(self._extract_torrent_files(remote_content))
+                        if local_files == remote_files:
+                            _debug("文件详情匹配：均 %d 文件，文件路径、文件大小完全一致", len(local_files))
+                            matches.append((local, torrent, remote_content, (local_files, remote_files)))
+        _info("找到 %d 对匹配", len(matches))
+
+        for local, torrent, _, (local_files, remote_files) in matches:
+            pretty.pretty_comparison(local, torrent, local_files, remote_files)
+        if not dry_run:
+            for local, torrent, content, _ in matches:
+                self.bt.api.add_torrent(content, torrent, exists=local)
+                local.torrent.add_tags(["keep"])
+
     def download(self, target: typing.Optional[TorrentInfo] = None, dry_run=False, print_scores=False, free_only=False,
                  paused=False, exists=False):
         local, scored_local, local_dict = self._gather_local_info()
@@ -174,6 +249,18 @@ class MainCommand(ConfigurableGroup):
                     local.seed_id = torrent.seed_id
                     local.info = info
                     break
+
+    @staticmethod
+    def _extract_torrent_files(content: bytes):
+        torrent = bencoder.bdecode(content)
+        info = torrent[b"info"]
+        root = info[b"name"].decode()
+        if b"files" not in info:
+            return [(root, info[b"length"])]
+        return [(
+            "/".join((root, *(segment.decode() for segment in file[b"path"]))),
+            file[b"length"],
+        ) for file in info[b"files"]]
 
     @staticmethod
     def _match_words(a: str, b: str):

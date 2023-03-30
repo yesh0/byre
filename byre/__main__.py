@@ -59,7 +59,7 @@ def main(ctx: click.Context, config: GlobalConfig, verbose: bool):
 byr = ByrCommand(ByrClient, ByrApi).register(main)
 tju = NexusCommand(TjuPtClient, TjuPtApi).register(main)
 bt = BtCommand(byr, tju).register(main)
-MainCommand(bt, byr).register(main)
+MainCommand(bt, byr, tju).register(main)
 
 
 @main.command(name="setup")

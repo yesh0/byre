@@ -180,3 +180,17 @@ def pretty_scored_torrents(torrents: list[tuple[TorrentInfo, float]]):
             click.style(f"{t.live_time:.2f} 天", fg="bright_magenta"),
         ))
     click.echo_via_pager(tabulate.tabulate(table, headers=header, maxcolwidths=limits, disable_numparse=True))
+
+
+def pretty_comparison(local: LocalTorrent, torrent: TorrentInfo, local_files: dict[str, int],
+                      remote_files: dict[str, int]):
+    r_arrow = click.style("==>", fg="bright_green")
+    l_arrow = click.style("<==", fg="bright_yellow")
+    table = [
+        (r_arrow, local.torrent.name, f"{local.torrent.size / 1000 ** 3:.2f} GB"),
+        (l_arrow, torrent.title, f"{torrent.file_size:.2f} GB"),
+    ]
+    for filename, size in local_files.items():
+        table.append((r_arrow, filename, f"{size / 1000 ** 3:.2f} GB"))
+        table.append((l_arrow, filename, f"{remote_files[filename] / 1000 ** 3:.2f} GB"))
+    click.echo_via_pager(tabulate.tabulate(table, maxcolwidths=[3, 60, 10], disable_numparse=True))

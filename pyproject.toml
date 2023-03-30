@@ -18,6 +18,7 @@ dependencies = [
     "tomli>=2.0.1",
     "tabulate[widechars]>=0.9.0",
     "overrides>=7.3.1",
+    "bencoder-pyx>=3.0.1",
 ]
 requires-python = ">=3.8"
 readme = "README.md"

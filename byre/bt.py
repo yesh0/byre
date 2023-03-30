@@ -91,15 +91,21 @@ class BtClient:
                 continue
             _debug("无需创建/删除“%s”", tag)
 
-    def add_torrent(self, torrent: bytes, info: TorrentInfo, paused=False, exists=False) -> None:
+    def add_torrent(self, torrent: bytes, info: TorrentInfo, paused: bool = False,
+                    exists: typing.Union[bool, LocalTorrent] = False) -> None:
         """添加种子并设置对应的类别和标签。"""
         title = self._generate_rename(info)
         _info("正在添加种子“%s”", title)
+        if isinstance(exists, LocalTorrent):
+            save_path = exists.torrent.save_path
+            _info("将种子设定保存路径设为 %s 并取消哈希检查", save_path)
+        else:
+            save_path = self._get_download_dir(info)
         self.client.torrents_add(
             torrent_files=torrent,
-            save_path=self._get_download_dir(info),
+            save_path=save_path,
             category=info.category,
-            is_skip_checking=exists,
+            is_skip_checking=bool(exists),
             is_paused=paused,
             rename=title,
             tags=[info.site],

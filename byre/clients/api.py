@@ -89,7 +89,7 @@ class NexusApi(metaclass=ABCMeta):
 
     @abstractmethod
     def list_torrents(self, page: int = 0, sorted_by: NexusSortableField = NexusSortableField.ID, desc: bool = True,
-                      /, **kwargs):
+                      /, **kwargs) -> list[TorrentInfo]:
         """从 torrents.php 页面提取信息。"""
 
     def current_user_id(self) -> int:
