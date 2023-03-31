@@ -34,7 +34,7 @@ from byre.commands.config import GlobalConfig, ConfigurableGroup
 from byre.commands.nexus import ByrCommand, NexusCommand
 
 _logger = logging.getLogger("byre.commands.main")
-_debug, _info = _logger.debug, _logger.info
+_debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
 
 
 class MainCommand(ConfigurableGroup):
@@ -188,23 +188,18 @@ class MainCommand(ConfigurableGroup):
                     # 因此比较文件名、文件大小应该可以保证是同一个种子。
                     if self._match_words(local.torrent.name, torrent.title):
                         _debug("关键词提取匹配了 %s 和 %s", local.torrent.name, torrent.title)
-                        local_files = dict((file.name, file.size) for file in local.torrent.files)
                         remote_content = api.download_torrent(torrent.seed_id)
-                        remote_files = dict(self._extract_torrent_files(remote_content))
-                        if local_files == remote_files:
-                            _debug("文件详情匹配：均 %d 文件，文件路径、文件大小完全一致", len(local_files))
-                            matches.append((local, torrent, remote_content, (local_files, remote_files)))
+                        if self._torrent_files_exact_match(local, remote_content, torrent):
+                            matches.append((local, torrent, remote_content))
         _info("找到 %d 对匹配", len(matches))
 
-        for local, torrent, _, (local_files, remote_files) in matches:
-            pretty.pretty_comparison(local, torrent, local_files, remote_files)
         if not dry_run:
-            for local, torrent, content, _ in matches:
+            for local, torrent, content in matches:
                 self.bt.api.add_torrent(content, torrent, exists=local)
                 local.torrent.add_tags(["keep"])
 
     def download(self, target: typing.Optional[TorrentInfo] = None, dry_run=False, print_scores=False, free_only=False,
-                 paused=False, exists=False):
+                 paused=False, exists: typing.Union[LocalTorrent, bool] = False):
         local, scored_local, local_dict = self._gather_local_info()
         if target is None:
             candidates = self._fetch_candidates(scored_local, local_dict, free_only=free_only)
@@ -246,9 +241,13 @@ class MainCommand(ConfigurableGroup):
                 else:
                     self.sites[t.site].configure(self.config)
                     api = self.sites[t.site].api
-                torrent = api.download_torrent(t.seed_id)
-                self.bt.api.add_torrent(torrent, t, paused=paused, exists=exists)
                 time.sleep(0.5)
+                torrent = api.download_torrent(t.seed_id)
+                if isinstance(exists, LocalTorrent):
+                    if not self._torrent_files_exact_match(exists, torrent, t):
+                        _warning("将要下载的种子与本地文件不符，无法合并种子")
+                        continue
+                self.bt.api.add_torrent(torrent, t, paused=paused, exists=exists)
 
     @staticmethod
     def _merge_torrent_list(*lists: list[TorrentInfo]):
@@ -337,3 +336,12 @@ class MainCommand(ConfigurableGroup):
         candidates = [(t, self.scorer.score_downloading(t)) for t in fetched]
         candidates.sort(key=lambda t: t[1], reverse=True)
         return candidates
+
+    @classmethod
+    def _torrent_files_exact_match(cls, local: LocalTorrent, remote_torrent: bytes, remote: TorrentInfo):
+        local_files = dict((file.name, file.size) for file in local.torrent.files)
+        remote_files = dict(cls._extract_torrent_files(remote_torrent))
+        if local_files == remote_files:
+            _debug("文件详情匹配：均 %d 文件，文件路径、文件大小完全一致", len(local_files))
+            pretty.pretty_comparison(local, remote, local_files, remote_files)
+            return True
