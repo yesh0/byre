@@ -17,7 +17,6 @@ import datetime
 import enum
 import logging
 import re
-import time
 import typing
 from abc import ABCMeta, abstractmethod
 from urllib.parse import parse_qs, urlparse
@@ -412,7 +411,6 @@ class NexusApi(metaclass=ABCMeta):
             tag = self._extract_tag(title_cell)
 
             if details:
-                time.sleep(0.5)
                 remote = self.torrent(byr_id)
                 second = remote.second_category
                 hs = remote.hash

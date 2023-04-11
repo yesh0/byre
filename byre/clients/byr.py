@@ -36,10 +36,9 @@ class ByrClient(NexusClient):
             username: str,
             password: str,
             cookie_file: str,
-            retry_delay: float = 1.,
             proxies: typing.Optional[dict[str, str]] = None
     ) -> None:
-        super().__init__(username, password, cookie_file, retry_delay, proxies)
+        super().__init__(username, password, cookie_file, proxies)
         #: 验证码自动识别模块（采用懒加载所以没有附上类型信息）。
         self._decaptcha = None
 
@@ -70,6 +69,7 @@ class ByrClient(NexusClient):
         _debug("验证码解析结果：%s", captcha_text)
 
         _debug("正在发起登录请求")
+        self._rate_limit()
         login_res = self._session.post(
             self.get_url("takelogin.php"),
             data={

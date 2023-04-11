@@ -40,8 +40,8 @@ class NexusClient(metaclass=ABCMeta):
             username: str,
             password: str,
             cookie_file: str,
-            retry_delay: float = 1.,
-            proxies: typing.Optional[dict[str, str]] = None
+            proxies: typing.Optional[dict[str, str]] = None,
+            request_frequency=2.,
     ) -> None:
         #: 站点登录用户名。
         self.username = username
@@ -49,8 +49,10 @@ class NexusClient(metaclass=ABCMeta):
         self.password = password
         #: 登录会话的 Cookies 缓存文件。
         self._cookie_file = cookie_file
-        #: 请求重试的等待间隔（秒）。
-        self._retry_delay = retry_delay
+        #: 最后一次请求的时间（秒），用于全局限流。
+        self._last_requested_at = 0.
+        #: 最大请求频率。
+        self._request_freq = request_frequency
         #: 会话。
         self._session = requests.Session()
         if proxies is not None:
@@ -82,7 +84,9 @@ class NexusClient(metaclass=ABCMeta):
             _info("成功从缓存中获取会话")
             return
 
+        self._rate_limit()
         self._authorize_session()
+        self._request_finished()
         _info("成功登录")
         self._cache_session()
 
@@ -90,7 +94,10 @@ class NexusClient(metaclass=ABCMeta):
         """使用当前会话发起请求，返回 `requests.Response`。"""
         _debug("正在请求 %s", path or "/")
         for i in range(retries):
+            self._rate_limit()
             res = self._session.get(self.get_url(path), allow_redirects=allow_redirects)
+            self._request_finished()
+
             if res.status_code == 200:
                 # 未登录的话大多时候会是重定向。
                 return res
@@ -98,7 +105,6 @@ class NexusClient(metaclass=ABCMeta):
                 self.login()
             if i != retries - 1:
                 _info("第 %d 次请求失败，正在重试（%s）", i + 1, path)
-                time.sleep(self._retry_delay)
         raise ConnectionError(f"所有 {retries} 次请求均失败")
 
     def get_soup(self, path: str, retries: int = 3):
@@ -148,3 +154,11 @@ class NexusClient(metaclass=ABCMeta):
             os.makedirs(path)
         with open(self._cookie_file, "wb") as file:
             pickle.dump(cookies, file)
+
+    def _rate_limit(self):
+        passed = time.time() - self._last_requested_at
+        if passed < 1. / self._request_freq:
+            time.sleep(1. / self._request_freq - passed)
+
+    def _request_finished(self):
+        self._last_requested_at = time.time()

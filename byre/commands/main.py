@@ -94,7 +94,6 @@ class MainCommand(ConfigurableGroup):
             self._match_against_remote(pending, self.byr.api.list_user_torrents(kind))
             if all(t.seed_id != 0 for t in pending):
                 break
-            time.sleep(0.5)
         rename_actions = pretty.pretty_rename(pending)
         _info("重命名结果：\n%s", rename_actions)
         if dry_run:
@@ -166,11 +165,8 @@ class MainCommand(ConfigurableGroup):
         for name, existing in existing_seeds.items():
             api = self.sites[name].api
             page = []
-            time.sleep(0.5)
             page.extend(api.list_torrents(0))
-            time.sleep(0.5)
             page.extend(api.list_torrents(0, NexusSortableField.LEECHER_COUNT))
-            time.sleep(0.5)
             page.extend(api.list_torrents(0, NexusSortableField.SEEDER_COUNT))
             page.sort(key=lambda t: t.file_size)
             existing_set = set(existing)
@@ -231,7 +227,6 @@ class MainCommand(ConfigurableGroup):
             for t in removable:
                 _info("正在删除：%s", t.torrent.name)
                 self.bt.api.remove_torrent(t, duplicates[t.torrent.hash])
-                time.sleep(0.5)
             for t in downloadable:
                 _info("正在添加下载：[%s-%d]%s", t.site, t.seed_id, t.title)
                 if t.site == "byr":
@@ -265,7 +260,6 @@ class MainCommand(ConfigurableGroup):
                     continue
                 info = self.byr.api.torrent(torrent.seed_id)
                 torrent_hash = info.hash
-                time.sleep(0.5)
                 if local.torrent.hash == torrent_hash:
                     local.seed_id = torrent.seed_id
                     local.info = info
@@ -308,14 +302,11 @@ class MainCommand(ConfigurableGroup):
     def _fetch_candidates(self, scored_local: list[tuple[LocalTorrent, float]], local_dict: dict[int, int],
                           free_only: bool):
         _info("正在抓取新种子")
-        lists = []
-        time.sleep(0.5)
-        lists.append(self.byr.api.list_torrents(0))
-        time.sleep(0.5)
-        lists.append(self.byr.api.list_torrents(0, sorted_by=NexusSortableField.LEECHER_COUNT))
-        time.sleep(0.5)
-        lists.append(self.byr.api.list_torrents(0, promotion=TorrentPromotion.FREE))
-        time.sleep(0.5)
+        lists = [
+            self.byr.api.list_torrents(0),
+            self.byr.api.list_torrents(0, sorted_by=NexusSortableField.LEECHER_COUNT),
+            self.byr.api.list_torrents(0, promotion=TorrentPromotion.FREE),
+        ]
         fetched = []
         _debug("正在将已下载的种子从新种子列表中除去")
         for torrent in self._merge_torrent_list(*lists):
