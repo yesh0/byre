@@ -50,6 +50,9 @@ url = "http://qBittorrent用户名:qBittorrent密码@localhost:8080"
 # (*) 下载目录
 download_dir = "/home/pi/Downloads"
 
+# 种子数据缓存
+cache_database = "byre.db"
+
 [planning]
 # 实际可用空间的规划相关
 
