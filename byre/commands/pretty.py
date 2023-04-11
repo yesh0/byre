@@ -150,7 +150,7 @@ def pretty_changes(removable: list[LocalTorrent], downloadable: list[TorrentInfo
             click.style("删", fg="bright_red"),
             click.style(f"{t.seed_id}", dim=True),
             click.style(t.torrent.name, dim=True),
-            click.style(f"-{t.torrent.size / 1000 ** 3:.2f} GB", fg="light_green"),
+            click.style(f"-{t.torrent.size / 1000 ** 3:.2f} GB", fg="bright_green"),
             "",
         ) for t in removable),
         *((
