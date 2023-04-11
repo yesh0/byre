@@ -194,9 +194,13 @@ class MainCommand(ConfigurableGroup):
 
     def download(self, target: typing.Optional[TorrentInfo] = None, dry_run=False, print_scores=False, free_only=False,
                  paused=False, exists: typing.Union[LocalTorrent, bool] = False):
-        local, scored_local, local_dict = self._gather_local_info()
+        remote = (
+                self.byr.api.list_user_torrents(kind=UserTorrentKind.SEEDING) +
+                self.byr.api.list_user_torrents(kind=UserTorrentKind.LEECHING)
+        )
+        local, scored_local, local_dict = self._gather_local_info(remote)
         if target is None:
-            candidates = self._fetch_candidates(scored_local, local_dict, free_only=free_only)
+            candidates = self._fetch_candidates(scored_local, local_dict, remote, free_only=free_only)
         else:
             _info("准备下载指定种子，将种子的价值设为无穷，去除单次下载量上限")
             candidates = [(target, math.inf)]
@@ -286,9 +290,8 @@ class MainCommand(ConfigurableGroup):
             _debug("尝试匹配 %s 与 %s：%s", a, b, matches)
         return len(matches) != 0
 
-    def _gather_local_info(self):
+    def _gather_local_info(self, remote: list[TorrentInfo]):
         _info("正在合并远端种子列表和本地种子列表信息")
-        remote = self.byr.api.list_user_torrents()
         local = self.bt.api.list_torrents(remote)
         local_dict = dict((t.seed_id, -1) for t in local)
 
@@ -300,13 +303,16 @@ class MainCommand(ConfigurableGroup):
         return local, scored_local, local_dict
 
     def _fetch_candidates(self, scored_local: list[tuple[LocalTorrent, float]], local_dict: dict[int, int],
-                          free_only: bool):
+                          byr_remote: list[TorrentInfo], free_only: bool):
         _info("正在抓取新种子")
         lists = [
             self.byr.api.list_torrents(0),
             self.byr.api.list_torrents(0, sorted_by=NexusSortableField.LEECHER_COUNT),
             self.byr.api.list_torrents(0, promotion=TorrentPromotion.FREE),
         ]
+        # 我们只支持批量抓取北邮人的种子，这里的 byr_ids 是为了防止多客户端
+        # （例如 NAS 一个，笔记本一个）被禁止下载的情况。
+        byr_ids = set(t.seed_id for t in byr_remote)
         fetched = []
         _debug("正在将已下载的种子从新种子列表中除去")
         for torrent in self._merge_torrent_list(*lists):
@@ -314,6 +320,8 @@ class MainCommand(ConfigurableGroup):
                 i = local_dict[torrent.seed_id]
                 if i != -1:
                     scored_local[i][0].info = torrent
+            elif torrent.seed_id in byr_ids:
+                continue
             else:
                 fetched.append(torrent)
 
