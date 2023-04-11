@@ -143,6 +143,8 @@ def pretty_rename(pending: list[LocalTorrent]) -> str:
 
 
 def pretty_changes(removable: list[LocalTorrent], downloadable: list[TorrentInfo]) -> str:
+    if len(removable) == 0 and len(downloadable) == 0:
+        return "无变更"
     return tabulate.tabulate((
         *((
             click.style("删", fg="bright_red"),
