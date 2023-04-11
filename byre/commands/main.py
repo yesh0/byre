@@ -24,7 +24,7 @@ import bencoder
 import click
 from overrides import override
 
-from byre import scoring, planning
+from byre import scoring, planning, storage
 from byre.clients import SITES
 from byre.clients.api import NexusSortableField
 from byre.clients.data import UserTorrentKind, TorrentInfo, LocalTorrent, TorrentPromotion, PROMOTION_FREE
@@ -50,6 +50,7 @@ class MainCommand(ConfigurableGroup):
         self.config: typing.Optional[GlobalConfig] = None
         self.planner: typing.Optional[planning.Planner] = None
         self.scorer: typing.Optional[scoring.Scorer] = None
+        self.store: typing.Optional[storage.TorrentStore] = None
 
     @override
     def configure(self, config: GlobalConfig):
@@ -63,6 +64,7 @@ class MainCommand(ConfigurableGroup):
             max_total_size=max_total_size,
             max_download_size=config.optional(float, max_total_size / 50, "planning", "max_download_size"),
         )
+        self.store = storage.TorrentStore(config.require(str, "qbittorrent", "cache_database"))
         self.config = config
         self.bt.configure(config)
         self.byr.configure(config)
@@ -94,7 +96,7 @@ class MainCommand(ConfigurableGroup):
                 break
             time.sleep(0.5)
         rename_actions = pretty.pretty_rename(pending)
-        _info(f"重命名结果：\n%s", rename_actions)
+        _info("重命名结果：\n%s", rename_actions)
         if dry_run:
             _info("以上计划未被实际运行；若想实际重命名，请去除命令行 -d / --dry-run 选项")
         else:
@@ -135,9 +137,6 @@ class MainCommand(ConfigurableGroup):
     def hitchhike(self, dry_run: bool):
         """
         搭便车，尝试寻找从北邮人站下载下来的、其它站点也有的种子，同时做种。
-
-        注意：开始同时做种之后，北邮人的对应种子会被标记上“keep”，防止文件被删除。
-        因此这部分目前还需要手动管理。
         """
         for site in self.sites.values():
             site.configure(self.config)
@@ -196,7 +195,6 @@ class MainCommand(ConfigurableGroup):
         if not dry_run:
             for local, torrent, content in matches:
                 self.bt.api.add_torrent(content, torrent, exists=local)
-                local.torrent.add_tags(["keep"])
 
     def download(self, target: typing.Optional[TorrentInfo] = None, dry_run=False, print_scores=False, free_only=False,
                  paused=False, exists: typing.Union[LocalTorrent, bool] = False):
@@ -211,8 +209,8 @@ class MainCommand(ConfigurableGroup):
             pretty.pretty_scored_torrents(candidates[:10])
 
         _info("正在计算最终种子选择")
-        removable, downloadable = self.planner.plan(local, scored_local, candidates)
-        estimates = self.planner.estimate(local, removable, downloadable)
+        removable, downloadable, duplicates = self.planner.plan(local, scored_local, candidates, self.store)
+        estimates = self.planner.estimate(local, removable, downloadable, self.store)
         summary = "\n".join((
             "更改总结：",
             f"最大允许空间占用 {self.planner.max_total_size:.2f} GB，"
@@ -232,7 +230,7 @@ class MainCommand(ConfigurableGroup):
         else:
             for t in removable:
                 _info("正在删除：%s", t.torrent.name)
-                self.bt.api.remove_torrent(t)
+                self.bt.api.remove_torrent(t, duplicates[t.torrent.hash])
                 time.sleep(0.5)
             for t in downloadable:
                 _info("正在添加下载：[%s-%d]%s", t.site, t.seed_id, t.title)
@@ -288,8 +286,8 @@ class MainCommand(ConfigurableGroup):
     @staticmethod
     def _match_words(a: str, b: str):
         separator = re.compile("[\\d -@\\[-`{-~]")
-        matches = (set(s.lower() for s in separator.split(a) if len(s) > 3)
-                   & set(s.lower() for s in separator.split(b) if len(s) > 3))
+        matches = (set(s.lower() for s in separator.split(a) if len(s) > 3) &
+                   set(s.lower() for s in separator.split(b) if len(s) > 3))
         if len(matches) != 0:
             _debug("尝试匹配 %s 与 %s：%s", a, b, matches)
         return len(matches) != 0

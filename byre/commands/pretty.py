@@ -42,10 +42,10 @@ def pretty_torrent_info(torrent: TorrentInfo):
         ("存活时间", click.style(f"{torrent.live_time:.2f} 天", fg="bright_green")),
         ("做种人数", f"{torrent.seeders}"),
         ("下载人数", click.style(f"{torrent.leechers}", fg="bright_magenta")),
-        ("上传用户", f"{torrent.uploader.username} " +
-         (click.style(f'<{CLIENTS[torrent.site].get_url(f"userdetails.php?id={torrent.uploader.user_id}")}>',
-                      underline=True)
-          if torrent.uploader.user_id != 0 else "")
+        ("上传用户", f"{torrent.uploader.username} "
+         + (click.style(f'<{CLIENTS[torrent.site].get_url(f"userdetails.php?id={torrent.uploader.user_id}")}>',
+                        underline=True)
+            if torrent.uploader.user_id != 0 else "")
          ),
     ], maxcolwidths=[2, 10, 60], showindex=True, disable_numparse=True))
 

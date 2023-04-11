@@ -121,8 +121,8 @@ class NexusClient(metaclass=ABCMeta):
             with open(self._cookie_file, "rb") as file:
                 cookies = pickle.load(file)
                 if (
-                        not isinstance(cookies, dict)
-                        or any(key not in cookies for key in ["username", "cookies"])
+                        not isinstance(cookies, dict) or
+                        any(key not in cookies for key in ["username", "cookies"])
                 ):
                     _warning("缓存文件格式错误")
                     return False

@@ -116,9 +116,16 @@ class BtClient:
         title = self._generate_rename(info)
         self.client.torrents_rename(torrent.torrent.hash, title)
 
-    def remove_torrent(self, torrent: LocalTorrent) -> None:
-        """删除种子并删除对应的文件。"""
+    def remove_torrent(self, torrent: LocalTorrent, extra: typing.Optional[typing.Iterable[str]] = None) -> None:
+        """
+        删除种子并删除对应的文件。
+
+        - ``extra`` : 是共用文件的其它应同步删除的种子，会先删除这些种子（但不删除文件），
+          然后再删除 ``torrent`` 并删除所有下载文件。
+        """
         _info("正在删除种子“%s”", torrent.torrent.name)
+        if extra is not None:
+            self.client.torrents_delete(delete_files=False, torrent_hashes=extra)
         self.client.torrents_delete(delete_files=True, torrent_hashes=[torrent.torrent.hash])
 
     def list_torrents(self, remote_torrents: list[TorrentInfo], wants_all=False,

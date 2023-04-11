@@ -18,6 +18,7 @@
 from dataclasses import dataclass
 
 from byre.clients.data import LocalTorrent, TorrentInfo
+from byre.storage import TorrentStore
 
 
 @dataclass
@@ -42,22 +43,34 @@ class Planner:
              local_torrents: list[LocalTorrent],
              local: list[tuple[LocalTorrent, float]],
              remote: list[tuple[TorrentInfo, float]],
-             ) -> tuple[list[LocalTorrent], list[TorrentInfo]]:
-        remaining = self.max_total_size - self._compute_used_space(local_torrents)
+             cache: TorrentStore,
+             ) -> tuple[list[LocalTorrent], list[TorrentInfo], dict[str, set[str]]]:
+        # duplicates 用于检查共用文件的种子。
+        used, duplicates = self._merge_torrent_info(local_torrents, cache)
+        # removable_hashes 用于检查共用文件的种子是否可以移除，以及它们共享分数。
+        removable_hashes = dict((t.torrent.hash, score) for t, score in local)
+
+        remaining = self.max_total_size - used
         i = 0
         removable, downloadable = [], []
         downloaded = 0.
         for candidate, score in remote:
             if downloaded + candidate.file_size > self.max_download_size:
                 continue
+            # 能下载就直接下载。
             if candidate.file_size < remaining:
                 remaining -= candidate.file_size
                 downloadable.append(candidate)
                 downloaded += candidate.file_size
                 continue
+            # 否则尝试移除分数相对低的本地种子。
             removable_size = 0
             j = i
             for j, (torrent, torrent_score) in enumerate(local[i:]):
+                if torrent_score >= score:
+                    break
+                torrent_score += sum(removable_hashes[t] for t in duplicates[torrent.torrent.hash])
+                # 我们以北邮人为主，其它站点说实话感觉不太活跃，分数不会太高。
                 if torrent_score >= score:
                     break
                 removable_size += torrent.torrent.size / 1000 ** 3
@@ -70,11 +83,11 @@ class Planner:
                 downloadable.append(candidate)
                 downloaded += candidate.file_size
                 continue
-        return removable, downloadable
+        return removable, downloadable, duplicates
 
     def estimate(self, local_torrents: list[LocalTorrent], removable: list[LocalTorrent],
-                 downloadable: list[TorrentInfo]) -> SpaceChange:
-        used = self._compute_used_space(local_torrents)
+                 downloadable: list[TorrentInfo], cache: TorrentStore) -> SpaceChange:
+        used, _ = self._merge_torrent_info(local_torrents, cache)
         deleted = sum(t.torrent.size for t in removable) / 1000 ** 3
         downloaded = sum(t.file_size for t in downloadable)
         return SpaceChange(
@@ -84,6 +97,21 @@ class Planner:
             after=used - deleted + downloaded,
         )
 
-    @staticmethod
-    def _compute_used_space(local_torrents: list[LocalTorrent]) -> float:
-        return sum(t.torrent.size for t in local_torrents) / 1000 ** 3
+    @classmethod
+    def _merge_torrent_info(cls, local_torrents: list[LocalTorrent],
+                            cache: TorrentStore) -> tuple[float, dict[str, set[str]]]:
+        total = 0.
+        path_torrents = {}
+        cached = cache.save_extra_torrents(local_torrents)
+        for torrent, info in zip(local_torrents, cached):
+            if info.path_hash in path_torrents:
+                path_torrents[info.path_hash].append(torrent)
+            else:
+                path_torrents[info.path_hash] = [torrent]
+                total += torrent.torrent.size
+        duplicates = {}
+        for _, same_torrents in path_torrents.items():
+            hashes = set(t.torrent.hash for t in same_torrents)
+            for torrent in same_torrents:
+                duplicates[torrent.torrent.hash] = hashes - {torrent.torrent.hash}
+        return total / 1000 ** 3, duplicates
