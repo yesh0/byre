@@ -63,6 +63,7 @@ class NexusClient(metaclass=ABCMeta):
                 "Safari/537.36",
             ]),
         })
+        self._update_session_from_cache()
 
     @classmethod
     @abstractmethod
@@ -93,6 +94,8 @@ class NexusClient(metaclass=ABCMeta):
             if res.status_code == 200:
                 # 未登录的话大多时候会是重定向。
                 return res
+            if retries > 1 and i == 0 and not self.is_logged_in():
+                self.login()
             if i != retries - 1:
                 _info("第 %d 次请求失败，正在重试（%s）", i + 1, path)
                 time.sleep(self._retry_delay)
@@ -131,9 +134,6 @@ class NexusClient(metaclass=ABCMeta):
                     return False
                 self._session.cookies.clear()
                 self._session.cookies.update(cookies["cookies"])
-                if not self.is_logged_in():
-                    _debug("可能是缓存的登录信息过期了")
-                    return False
                 return True
         return False
 

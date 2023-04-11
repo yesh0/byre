@@ -80,8 +80,6 @@ class NexusApi(metaclass=ABCMeta):
         self.client = client
         #: 当前登录用户 ID。
         self._user_id = 0
-        if not client.is_logged_in():
-            client.login()
 
     def close(self) -> None:
         """关闭所用的资源。"""

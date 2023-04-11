@@ -14,7 +14,6 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import time
 import typing
 
 import click
@@ -58,7 +57,6 @@ class NexusCommand(ConfigurableGroup):
                 "https": proxy,
             } if proxy else None,
         ))
-        time.sleep(0.5)
 
     @click.command
     @click.argument("seed", type=click.STRING, metavar="<站点种子链接或是种子 ID>")
