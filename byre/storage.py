@@ -96,7 +96,10 @@ class TorrentStore:
         torrents: list[typing.Optional[TorrentDO]] = [None] * len(local)
         for i, chunk in enumerate(local[i: i + 100] for i in range(0, len(local), 100)):
             hash_index = dict((t.torrent.hash.lower(), j) for j, t in enumerate(chunk))
-            existing = self.list_torrents(f"WHERE hash IN ({','.join('?' * len(hash_index))})", hash_index.keys())
+            existing = self.list_torrents(
+                f"WHERE hash IN ({','.join('?' * len(hash_index))})",
+                tuple(hash_index.keys()),
+            )
             missing = hash_index.keys() - set(t.hash for t in existing)
             for t in existing:
                 torrents[i * 100 + hash_index[t.hash]] = t
