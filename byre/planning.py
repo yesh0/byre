@@ -57,6 +57,8 @@ class Planner:
         for candidate, score in remote:
             if downloaded + candidate.file_size > self.max_download_size:
                 continue
+            if score == 0.:
+                break
             # 能下载就直接下载。
             if candidate.file_size < remaining:
                 remaining -= candidate.file_size
