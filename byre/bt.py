@@ -35,7 +35,7 @@ class BtClient:
         info = urlparse(url)
         scheme = info.scheme or "http"
         #: 下载路径。
-        self._dir = os.path.realpath(download_dir)
+        self.download_dir = os.path.realpath(download_dir)
         #: qBittorrent 连接。
         self.client = qbittorrentapi.Client(
             host=f"{scheme}://{info.hostname}",
@@ -62,7 +62,7 @@ class BtClient:
             if category in existing:
                 _debug("类别“%s”已存在，跳过创建", category)
                 continue
-            download_dir = os.path.join(self._dir, category)
+            download_dir = os.path.join(self.download_dir, category)
             _debug("正在创建类别“%s”", category)
             self.client.torrents_create_category(
                 category,
@@ -164,8 +164,8 @@ class BtClient:
 
     def _get_download_dir(self, torrent: TorrentInfo) -> str:
         """下载目录，由种子分类及二级分类决定。"""
-        return (os.path.join(self._dir, torrent.category, torrent.second_category)
-                if torrent.second_category else os.path.join(self._dir, torrent.category))
+        return (os.path.join(self.download_dir, torrent.category, torrent.second_category)
+                if torrent.second_category else os.path.join(self.download_dir, torrent.category))
 
     @staticmethod
     def _generate_rename(info: TorrentInfo) -> str:

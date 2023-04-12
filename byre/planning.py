@@ -46,7 +46,7 @@ class Planner:
              cache: TorrentStore,
              ) -> tuple[list[LocalTorrent], list[TorrentInfo], dict[str, set[str]]]:
         # duplicates 用于检查共用文件的种子。
-        used, duplicates = self._merge_torrent_info(local_torrents, cache)
+        used, duplicates = self.merge_torrent_info(local_torrents, cache)
         # removable_hashes 用于检查共用文件的种子是否可以移除，以及它们共享分数。
         removable_hashes = dict((t.torrent.hash, score) for t, score in local)
 
@@ -87,7 +87,7 @@ class Planner:
 
     def estimate(self, local_torrents: list[LocalTorrent], removable: list[LocalTorrent],
                  downloadable: list[TorrentInfo], cache: TorrentStore) -> SpaceChange:
-        used, _ = self._merge_torrent_info(local_torrents, cache)
+        used, _ = self.merge_torrent_info(local_torrents, cache)
         deleted = sum(t.torrent.size for t in removable) / 1000 ** 3
         downloaded = sum(t.file_size for t in downloadable)
         return SpaceChange(
@@ -98,8 +98,8 @@ class Planner:
         )
 
     @classmethod
-    def _merge_torrent_info(cls, local_torrents: list[LocalTorrent],
-                            cache: TorrentStore) -> tuple[float, dict[str, set[str]]]:
+    def merge_torrent_info(cls, local_torrents: list[LocalTorrent],
+                           cache: TorrentStore) -> tuple[float, dict[str, set[str]]]:
         total = 0.
         path_torrents = {}
         cached = cache.save_extra_torrents(local_torrents)

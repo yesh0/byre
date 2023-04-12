@@ -22,6 +22,7 @@ import typing
 
 import bencoder
 import click
+import psutil
 from overrides import override
 
 from byre import scoring, planning, storage
@@ -103,6 +104,24 @@ class MainCommand(ConfigurableGroup):
                 if torrent.seed_id != 0:
                     _debug("正在重命名 %s", torrent.info.title)
                     self.bt.api.rename_torrent(torrent, torrent.info)
+
+    @click.command(name="stat")
+    def stat(self):
+        """显示当前本地统计信息。"""
+        local = self.bt.api.list_torrents([])
+        total, duplicates = self.planner.merge_torrent_info(local, self.store)
+        finished = sum(t.torrent.amount_left == 0 for t in local)
+        amount_left = sum(t.torrent.amount_left for t in local) / 1000 ** 3
+        dl_speed = sum(t.torrent.dlspeed for t in local) / 1000 ** 2
+        up_speed = sum(t.torrent.upspeed for t in local) / 1000 ** 2
+        uploaded = sum(t.torrent.uploaded for t in local) / 1000 ** 3
+        uploaded_session = sum(t.torrent.uploaded_session for t in local) / 1000 ** 3
+        click.echo(f"当前管理种子数：{len(local)}，下载完成数 {finished}，剩余下载量 {amount_left:.2f} GB")
+        click.echo(f"上传速度 {up_speed:.2f} MB/s，下载速度 {dl_speed:.2f} MB/s")
+        click.echo(f"当前种子总上传量 {uploaded:.2f} GB，最近一次重启后上传量 {uploaded_session:.2f} GB")
+        click.echo(f"当前本地种子已用空间 {total:.2f} GB，使用空间上限为 {self.planner.max_total_size:.2f} GB")
+        remaining = psutil.disk_usage(self.bt.api.download_dir).free / 1000 ** 3
+        click.echo(f"当前下载目录分区剩余空间 {remaining:.2f} GB")
 
     @click.command(name="download")
     @click.argument("seed", type=click.STRING, metavar="<北邮人链接或是种子 ID>")
