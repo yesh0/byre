@@ -43,6 +43,7 @@ class Planner:
              local_torrents: list[LocalTorrent],
              local: list[tuple[LocalTorrent, float]],
              remote: list[tuple[TorrentInfo, float]],
+             disk_remaining: float,
              cache: TorrentStore,
              ) -> tuple[list[LocalTorrent], list[TorrentInfo], dict[str, set[str]]]:
         # duplicates 用于检查共用文件的种子。
@@ -50,7 +51,11 @@ class Planner:
         # removable_hashes 用于检查共用文件的种子是否可以移除，以及它们共享分数。
         removable_hashes = dict((t.torrent.hash, score) for t, score in local)
 
-        remaining = self.max_total_size - used
+        max_total_size = used + disk_remaining - 0.01
+        if self.max_total_size > 0:
+            max_total_size = min(max_total_size, self.max_total_size)
+
+        remaining = max_total_size - used
         i = 0
         removable, downloadable = [], []
         downloaded = 0.

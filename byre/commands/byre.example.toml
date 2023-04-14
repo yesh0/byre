@@ -57,7 +57,9 @@ cache_database = "byre.db"
 # 实际可用空间的规划相关
 
 # (*) 总可用空间上限（GB），脚本会控制本地北邮人种子的总大小不超过上限
-max_total_size = 500
+#
+# 0 或者负数意味着脚本会将总上限设为刚好能把硬盘下满的大小。
+max_total_size = 0
 
 # (*) 单次下载的下载量上限（GB）
 max_download_size = 25

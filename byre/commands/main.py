@@ -60,7 +60,7 @@ class MainCommand(ConfigurableGroup):
             cost_recovery_days=config.optional(float, 7., "scoring", "cost_recovery_days"),
             removal_exemption_days=config.optional(float, 15., "scoring", "removal_exemption_days"),
         )
-        max_total_size = config.require(float, "planning", "max_total_size")
+        max_total_size = config.optional(float, 0., "planning", "max_total_size")
         self.planner = planning.Planner(
             max_total_size=max_total_size,
             max_download_size=config.optional(float, max_total_size / 50, "planning", "max_download_size"),
@@ -120,8 +120,12 @@ class MainCommand(ConfigurableGroup):
         click.echo(f"上传速度 {up_speed:.2f} MB/s，下载速度 {dl_speed:.2f} MB/s")
         click.echo(f"当前种子总上传量 {uploaded:.2f} GB，最近一次重启后上传量 {uploaded_session:.2f} GB")
         click.echo(f"当前本地种子已用空间 {total:.2f} GB，使用空间上限为 {self.planner.max_total_size:.2f} GB")
-        remaining = psutil.disk_usage(self.bt.api.download_dir).free / 1000 ** 3
+        remaining = self._get_disk_remaining()
         click.echo(f"当前下载目录分区剩余空间 {remaining:.2f} GB")
+
+    def _get_disk_remaining(self):
+        remaining = psutil.disk_usage(self.bt.api.download_dir).free / 1000 ** 3
+        return remaining
 
     @click.command(name="download")
     @click.argument("seed", type=click.STRING, metavar="<北邮人链接或是种子 ID>")
@@ -228,7 +232,11 @@ class MainCommand(ConfigurableGroup):
             pretty.pretty_scored_torrents(candidates[:10])
 
         _info("正在计算最终种子选择")
-        removable, downloadable, duplicates = self.planner.plan(local, scored_local, candidates, self.store)
+        disk_remaining = self._get_disk_remaining()
+        removable, downloadable, duplicates = self.planner.plan(
+            local, scored_local, candidates,
+            disk_remaining, self.store,
+        )
         estimates = self.planner.estimate(local, removable, downloadable, self.store)
         summary = "\n".join((
             "更改总结：",
