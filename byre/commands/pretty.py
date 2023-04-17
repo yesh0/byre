@@ -151,17 +151,29 @@ def pretty_rename(pending: list[LocalTorrent]) -> str:
     return tabulate.tabulate((*failed, *found), maxcolwidths=[2, 50, 10, 10], disable_numparse=True)
 
 
-def pretty_changes(removable: list[LocalTorrent], downloadable: list[TorrentInfo]) -> str:
+def pretty_changes(removable: list[LocalTorrent], downloadable: list[TorrentInfo],
+                   duplicates: dict[str, list[LocalTorrent]]) -> str:
     if len(removable) == 0 and len(downloadable) == 0:
         return "无变更"
-    return tabulate.tabulate((
-        *((
+    all_removable = []
+    for t in removable:
+        all_removable.append((
             click.style("删", fg="bright_red"),
             click.style(f"{t.seed_id}", dim=True),
             click.style(t.torrent.name, dim=True),
             click.style(f"-{t.torrent.size / 1000 ** 3:.2f} GB", fg="bright_green"),
             "",
-        ) for t in removable),
+        ))
+        for dup in duplicates[t.torrent.hash]:
+            all_removable.append((
+                click.style("同", fg="bright_yellow"),
+                click.style(f"{dup.seed_id}", dim=True),
+                click.style(dup.torrent.name, dim=True),
+                click.style(dup.site, fg="yellow"),
+                "",
+            ))
+    return tabulate.tabulate((
+        *all_removable,
         *((
             click.style("新", fg="bright_cyan"),
             click.style(f"{t.seed_id}", dim=True),

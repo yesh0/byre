@@ -15,6 +15,7 @@
 
 import logging
 import os.path
+import time
 import typing
 from urllib.parse import urlparse
 
@@ -116,7 +117,8 @@ class BtClient:
         title = self._generate_rename(info)
         self.client.torrents_rename(torrent.torrent.hash, title)
 
-    def remove_torrent(self, torrent: LocalTorrent, extra: typing.Optional[typing.Iterable[str]] = None) -> None:
+    def remove_torrent(self, torrent: LocalTorrent,
+                       extra: typing.Optional[typing.Iterable[LocalTorrent]] = None) -> None:
         """
         删除种子并删除对应的文件。
 
@@ -125,7 +127,8 @@ class BtClient:
         """
         _info("正在删除种子“%s”", torrent.torrent.name)
         if extra is not None:
-            self.client.torrents_delete(delete_files=False, torrent_hashes=extra)
+            self.client.torrents_delete(delete_files=False, torrent_hashes=(t.torrent.hash for t in extra))
+            time.sleep(0.5)
         self.client.torrents_delete(delete_files=True, torrent_hashes=[torrent.torrent.hash])
 
     def list_torrents(self, remote_torrents: list[TorrentInfo], wants_all=False,

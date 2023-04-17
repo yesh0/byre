@@ -15,10 +15,15 @@
 
 """根据评分给出种子选择结果。"""
 
+import logging
 from dataclasses import dataclass
 
 from byre.clients.data import LocalTorrent, TorrentInfo
 from byre.storage import TorrentStore
+
+
+_logger = logging.getLogger("byre.planning")
+_debug = _logger.debug
 
 
 @dataclass
@@ -45,11 +50,13 @@ class Planner:
              remote: list[tuple[TorrentInfo, float]],
              disk_remaining: float,
              cache: TorrentStore,
-             ) -> tuple[list[LocalTorrent], list[TorrentInfo], dict[str, set[str]]]:
+             ) -> tuple[list[LocalTorrent], list[TorrentInfo], dict[str, list[LocalTorrent]]]:
         # duplicates 用于检查共用文件的种子。
         used, duplicates = self.merge_torrent_info(local_torrents, cache)
         # removable_hashes 用于检查共用文件的种子是否可以移除，以及它们共享分数。
-        removable_hashes = dict((t.torrent.hash, score) for t, score in local)
+        removable_hashes: dict[str, float] = dict((t.torrent.hash, score) for t, score in local)
+        # 以北邮人种子为主
+        local = [(t, score) for t, score in local if t.site == "byr"]
 
         max_total_size = used + disk_remaining - 0.01
         if self.max_total_size > 0:
@@ -76,7 +83,7 @@ class Planner:
             for j, (torrent, torrent_score) in enumerate(local[i:]):
                 if torrent_score >= score:
                     break
-                torrent_score += sum(removable_hashes[t] for t in duplicates[torrent.torrent.hash])
+                torrent_score += sum(removable_hashes[t.torrent.hash] for t in duplicates[torrent.torrent.hash])
                 # 我们以北邮人为主，其它站点说实话感觉不太活跃，分数不会太高。
                 if torrent_score >= score:
                     break
@@ -106,7 +113,7 @@ class Planner:
 
     @classmethod
     def merge_torrent_info(cls, local_torrents: list[LocalTorrent],
-                           cache: TorrentStore) -> tuple[float, dict[str, set[str]]]:
+                           cache: TorrentStore) -> tuple[float, dict[str, list[LocalTorrent]]]:
         total = 0.
         path_torrents = {}
         cached = cache.save_extra_torrents(local_torrents)
@@ -118,7 +125,8 @@ class Planner:
                 total += torrent.torrent.size
         duplicates = {}
         for _, same_torrents in path_torrents.items():
-            hashes = set(t.torrent.hash for t in same_torrents)
+            hashes = dict((t.torrent.hash, t) for t in same_torrents)
+            _debug("共享相同文件的种子：%s", [t.torrent.name for t in same_torrents])
             for torrent in same_torrents:
-                duplicates[torrent.torrent.hash] = hashes - {torrent.torrent.hash}
+                duplicates[torrent.torrent.hash] = [hashes[h] for h in (hashes.keys() - {torrent.torrent.hash})]
         return total / 1000 ** 3, duplicates

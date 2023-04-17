@@ -246,7 +246,7 @@ class MainCommand(ConfigurableGroup):
             f"最后预期总占用 {estimates.after:.2f} GB",
             f"将会删除 {len(removable)} 项内容（共计 {estimates.to_be_deleted:.2f} GB），"
             f"将会下载 {len(downloadable)} 项内容（共计 {estimates.to_be_downloaded:.2f} GB）",
-            pretty.pretty_changes(removable, downloadable)
+            pretty.pretty_changes(removable, downloadable, duplicates)
         ))
         if print_scores:
             click.echo_via_pager(summary)
