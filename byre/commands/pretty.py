@@ -66,6 +66,9 @@ def pretty_user_info(user: NexusUser):
 
 
 def pretty_torrent_list(torrents: list[TorrentInfo]):
+    if len(torrents) == 0:
+        click.echo("种子列表为空")
+        return
     table = []
     header = ["ID", "标题", ""]
     limits = [8, 54, 10]
@@ -86,6 +89,9 @@ def pretty_torrent_list(torrents: list[TorrentInfo]):
 
 
 def pretty_local_torrents(torrents: list[LocalTorrent], speed=False):
+    if len(torrents) == 0:
+        click.echo("种子列表为空")
+        return
     table = []
     header = ["最后活跃", "标题", "速度" if speed else "累计", "分享率"]
     limits = [8, 44, 10, 10]
@@ -111,6 +117,9 @@ def pretty_local_torrents(torrents: list[LocalTorrent], speed=False):
 
 
 def pretty_rename(pending: list[LocalTorrent]) -> str:
+    if len(pending) == 0:
+        click.echo("种子列表为空")
+        return
     failed, found = [], []
     arrow = click.style("=>", dim=True)
     for t in pending:
@@ -164,6 +173,9 @@ def pretty_changes(removable: list[LocalTorrent], downloadable: list[TorrentInfo
 
 
 def pretty_scored_torrents(torrents: list[tuple[TorrentInfo, float]]):
+    if len(torrents) == 0:
+        click.echo("种子列表为空")
+        return
     table = []
     header = ["评分", "标题", ""]
     limits = [8, 54, 10]
