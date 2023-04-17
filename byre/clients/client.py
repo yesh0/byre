@@ -102,7 +102,7 @@ class NexusClient(metaclass=ABCMeta):
                 # 未登录的话大多时候会是重定向。
                 return res
             if retries > 1 and i == 0 and not self.is_logged_in():
-                self.login()
+                self.login(cache=False)
             if i != retries - 1:
                 _info("第 %d 次请求失败，正在重试（%s）", i + 1, path)
         raise ConnectionError(f"所有 {retries} 次请求均失败")
