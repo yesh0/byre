@@ -114,4 +114,4 @@ class ByrApi(NexusApi):
             f"torrents.php?page={page}&spstate={promotion.get_int()}"
             f"&pktype={tag.value}&sort={sorted_by.value}&type={order}"
         )
-        return self._extract_torrent_table(page.select("table.torrents > form > tr")[1:])
+        return self._extract_torrent_table(page.select("table.torrents > tr")[1:])
