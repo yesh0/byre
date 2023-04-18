@@ -14,7 +14,9 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
+import logging
 import typing
+from urllib.parse import quote
 
 import bs4
 from overrides import override
@@ -23,6 +25,10 @@ from byre import utils
 from byre.clients.api import NexusApi
 from byre.clients.byr import NexusSortableField, TorrentInfo
 from byre.clients.client import NexusClient
+
+
+_logger = logging.getLogger("byre.clients.byr")
+_warning = _logger.warning
 
 
 class TjuPtClient(NexusClient):
@@ -66,13 +72,18 @@ class TjuPtApi(NexusApi):
         return "tju"
 
     @override
-    def list_torrents(self, page: int = 0,
+    def list_torrents(self, /, page: int = 0,
                       sorted_by: NexusSortableField = NexusSortableField.ID,
-                      desc: bool = True,
-                      /, **kwargs) -> list[TorrentInfo]:
+                      desc: bool = True, fav: bool = False, search: typing.Optional[str] = None,
+                      **kwargs) -> list[TorrentInfo]:
         """从 torrents.php 页面提取信息。"""
+        if len(kwargs) > 0:
+            _warning("不支持的参数：%s", kwargs.keys())
         order = "desc" if desc else "asc"
-        page = self.client.get_soup(f"torrents.php?page={page}&sort={sorted_by.value}&type={order}")
+        page = self.client.get_soup(
+            f"torrents.php?page={page}&sort={sorted_by.value}&type={order}&inclbookmarked={int(fav)}"
+            + ("" if search is None else f"&search={quote(search)}")
+        )
         return self._extract_torrent_table(page.select("table.torrents > tr")[1:])
 
     @classmethod

@@ -52,7 +52,7 @@ class BtClientTestCase(unittest.TestCase):
         client.init_tags()
         client.init_categories(["Others"])
         byr = ByrApi(test_client.login(path))
-        torrent = byr.list_torrents(0, promotion=TorrentPromotion.NONE,
+        torrent = byr.list_torrents(page=0, promotion=TorrentPromotion.NONE,
                                     sorted_by=NexusSortableField.LIVE_TIME, desc=False)[0]
 
         torrent.category = "Others"

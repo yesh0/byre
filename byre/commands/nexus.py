@@ -87,13 +87,33 @@ class NexusCommand(ConfigurableGroup):
         pretty.pretty_torrent_list(torrents)
 
     @click.command
+    def fav(self):
+        """显示收藏种子。"""
+        torrents = self.api.list_torrents(fav=True)
+        pretty.pretty_torrent_list(torrents)
+
+    @click.command
+    @click.argument("search", type=click.STRING, required=True, metavar="<搜索内容>")
+    @click.option("-p", "--page", type=click.INT, default=0, help="页码")
+    @click.option("-o", "--order",
+                  type=click.Choice([p.name.lower() for p in NexusSortableField], case_sensitive=False),
+                  default="id", help="排序类型")
+    @click.option("--desc/--asc", default=True, help="降序排序（默认）/ 升序排序")
+    def search(self, search: str, page: int, order: str, desc: bool):
+        """搜索种子。"""
+        torrents = self.api.list_torrents(page=page, sorted_by=NexusSortableField[order.upper()], desc=desc,
+                                          search=search)
+        pretty.pretty_torrent_list(torrents)
+
+    @click.command
     @click.argument("page", type=click.INT, default=0, metavar="[种子页面页码]")
     @click.option("-o", "--order",
                   type=click.Choice([p.name.lower() for p in NexusSortableField], case_sensitive=False),
                   default="id", help="排序类型")
-    def list(self, page: int, order: str):
+    @click.option("--desc/--asc", default=True, help="降序排序（默认）/ 升序排序")
+    def list(self, page: int, order: str, desc: bool):
         """显示种子列表（页码从零开始）。"""
-        torrents = self.api.list_torrents(page, sorted_by=NexusSortableField[order.upper()])
+        torrents = self.api.list_torrents(page=page, sorted_by=NexusSortableField[order.upper()], desc=desc)
         pretty.pretty_torrent_list(torrents)
 
 

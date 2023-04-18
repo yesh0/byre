@@ -188,9 +188,9 @@ class MainCommand(ConfigurableGroup):
         for name, existing in existing_seeds.items():
             api = self.sites[name].api
             page = []
-            page.extend(api.list_torrents(0))
-            page.extend(api.list_torrents(0, NexusSortableField.LEECHER_COUNT))
-            page.extend(api.list_torrents(0, NexusSortableField.SEEDER_COUNT))
+            page.extend(api.list_torrents(page=0))
+            page.extend(api.list_torrents(page=0, sorted_by=NexusSortableField.LEECHER_COUNT))
+            page.extend(api.list_torrents(page=0, sorted_by=NexusSortableField.SEEDER_COUNT))
             page.sort(key=lambda t: t.file_size)
             existing_set = set(existing)
             for torrent in page:
@@ -333,9 +333,9 @@ class MainCommand(ConfigurableGroup):
                           byr_remote: list[TorrentInfo], free_only: bool):
         _info("正在抓取新种子")
         lists = [
-            self.byr.api.list_torrents(0),
-            self.byr.api.list_torrents(0, sorted_by=NexusSortableField.LEECHER_COUNT),
-            self.byr.api.list_torrents(0, promotion=TorrentPromotion.FREE),
+            self.byr.api.list_torrents(page=0),
+            self.byr.api.list_torrents(page=0, sorted_by=NexusSortableField.LEECHER_COUNT),
+            self.byr.api.list_torrents(page=0, promotion=TorrentPromotion.FREE),
         ]
         # 我们只支持批量抓取北邮人的种子，这里的 byr_ids 是为了防止多客户端
         # （例如 NAS 一个，笔记本一个）被禁止下载的情况。

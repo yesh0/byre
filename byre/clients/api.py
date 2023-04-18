@@ -85,8 +85,8 @@ class NexusApi(metaclass=ABCMeta):
         self.client.close()
 
     @abstractmethod
-    def list_torrents(self, page: int = 0, sorted_by: NexusSortableField = NexusSortableField.ID, desc: bool = True,
-                      /, **kwargs) -> list[TorrentInfo]:
+    def list_torrents(self, /, page: int = 0, sorted_by: NexusSortableField = NexusSortableField.ID, desc: bool = True,
+                      fav: bool = False, search: typing.Optional[str] = None, **kwargs) -> list[TorrentInfo]:
         """从 torrents.php 页面提取信息。"""
 
     def current_user_id(self) -> int:

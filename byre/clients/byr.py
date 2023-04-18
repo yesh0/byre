@@ -17,6 +17,7 @@
 
 import logging
 import typing
+from urllib.parse import quote
 
 from overrides import override
 
@@ -25,7 +26,7 @@ from byre.clients.client import NexusClient
 from byre.clients.data import TorrentInfo, TorrentPromotion, TorrentTag
 
 _logger = logging.getLogger("byre.clients.byr")
-_debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
+_debug, _warning = _logger.debug, _logger.warning
 
 
 class ByrClient(NexusClient):
@@ -101,17 +102,19 @@ class ByrApi(NexusApi):
         return "byr"
 
     @override
-    def list_torrents(self, page: int = 0,
+    def list_torrents(self, /, page: int = 0,
                       sorted_by: NexusSortableField = NexusSortableField.ID,
-                      desc: bool = True,
-                      /,
+                      desc: bool = True, fav: bool = False, search: typing.Optional[str] = None,
                       promotion: TorrentPromotion = TorrentPromotion.ANY,
                       tag: TorrentTag = TorrentTag.ANY,
                       **kwargs) -> list[TorrentInfo]:
         """从 torrents.php 页面提取信息。"""
+        if len(kwargs) > 0:
+            _warning("不支持的参数：%s", kwargs.keys())
         order = "desc" if desc else "asc"
         page = self.client.get_soup(
             f"torrents.php?page={page}&spstate={promotion.get_int()}"
-            f"&pktype={tag.value}&sort={sorted_by.value}&type={order}"
+            f"&pktype={tag.value}&sort={sorted_by.value}&type={order}&inclbookmarked={int(fav)}"
+            + ("" if search is None else f"&search={quote(search)}")
         )
         return self._extract_torrent_table(page.select("table.torrents > tr")[1:])
