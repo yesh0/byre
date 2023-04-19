@@ -135,14 +135,11 @@ class BtClient:
                       site: typing.Optional[str] = None) -> list[LocalTorrent]:
         """列出所有本地带有对应 NexusPHP 标签且命名符合要求的种子。"""
         if site is None:
-            if len(remote_torrents) != 0:
-                site = remote_torrents[0].site
-            else:
-                summed = []
-                for site in byre.clients.SITES.keys():
-                    summed.extend(self.list_torrents([], wants_all=wants_all, site=site))
-                return summed
-        remote_mapping = dict((t.seed_id, t) for t in remote_torrents)
+            gathered = []
+            for site in byre.clients.SITES.keys():
+                gathered.extend(self.list_torrents(remote_torrents, wants_all=wants_all, site=site))
+            return gathered
+        remote_mapping = dict((t.seed_id, t) for t in remote_torrents if t.site == site)
         torrents = []
         for torrent in self.client.torrents_info(tag=site):
             try:

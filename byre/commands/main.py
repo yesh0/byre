@@ -221,9 +221,9 @@ class MainCommand(ConfigurableGroup):
                 self.byr.api.list_user_torrents(kind=UserTorrentKind.SEEDING) +
                 self.byr.api.list_user_torrents(kind=UserTorrentKind.LEECHING)
         )
-        local, scored_local, local_dict = self._gather_local_info(remote)
+        local, scored_local, local_dicts = self._gather_local_info(remote)
         if target is None:
-            candidates = self._fetch_candidates(scored_local, local_dict, remote, free_only=free_only)
+            candidates = self._fetch_candidates(scored_local, local_dicts["byr"], remote, free_only=free_only)
         else:
             _info("准备下载指定种子，将种子的价值设为无穷，去除单次下载量上限")
             candidates = [(target, math.inf)]
@@ -320,14 +320,20 @@ class MainCommand(ConfigurableGroup):
     def _gather_local_info(self, remote: list[TorrentInfo]):
         _info("正在合并远端种子列表和本地种子列表信息")
         local = self.bt.api.list_torrents(remote)
-        local_dict = dict((t.seed_id, -1) for t in local)
-
         _info("正在对本地种子评分")
-        scored_local = list(filter(lambda t: t[1] >= 0, ((t, self.scorer.score_uploading(t)) for t in local)))
-        scored_local.sort(key=lambda t: t[1])
-        local_dict.update((t[0].seed_id, i) for i, t in enumerate(scored_local))
+        scored_local = [(t, self.scorer.score_uploading(t)) for t in local]
+        # 把评分为 -1 的种子排到后面去。
+        scored_local.sort(key=lambda t: t[1] if t[1] >= 0 else (1 << 31))
 
-        return local, scored_local, local_dict
+        # local_dicts 是从种子 ID 到 scored_local 的映射。
+        local_dicts = {}
+        for i, t in enumerate(scored_local):
+            site = t[0].site
+            if t[0].site not in local_dicts:
+                local_dicts[site] = {}
+            local_dicts[site][t[0].seed_id] = i
+
+        return local, scored_local, local_dicts
 
     def _fetch_candidates(self, scored_local: list[tuple[LocalTorrent, float]], local_dict: dict[int, int],
                           byr_remote: list[TorrentInfo], free_only: bool):

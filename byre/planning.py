@@ -56,7 +56,7 @@ class Planner:
         # removable_hashes 用于检查共用文件的种子是否可以移除，以及它们共享分数。
         removable_hashes: dict[str, float] = dict((t.torrent.hash, score) for t, score in local)
         # 以北邮人种子为主
-        local = [(t, score) for t, score in local if t.site == "byr"]
+        local = [t for t in local if t[0].site == "byr"]
 
         max_total_size = used + disk_remaining - 0.01
         if self.max_total_size > 0:
@@ -81,7 +81,10 @@ class Planner:
             removable_size = 0
             j = i
             for j, (torrent, torrent_score) in enumerate(local[i:]):
-                if torrent_score >= score:
+                # 分数小于零的意味着不可移除（正在下载或上传中等等）。
+                if torrent_score >= score or torrent_score < 0:
+                    break
+                if any(removable_hashes[t.torrent.hash] < 0 for t in duplicates[torrent.torrent.hash]):
                     break
                 torrent_score += sum(removable_hashes[t.torrent.hash] for t in duplicates[torrent.torrent.hash])
                 # 我们以北邮人为主，其它站点说实话感觉不太活跃，分数不会太高。
