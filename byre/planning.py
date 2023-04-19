@@ -126,10 +126,13 @@ class Planner:
             else:
                 path_torrents[info.path_hash] = [torrent]
                 total += torrent.torrent.size
-        duplicates = {}
+        duplicates: dict[str, list[LocalTorrent]] = {}
         for _, same_torrents in path_torrents.items():
-            hashes = dict((t.torrent.hash, t) for t in same_torrents)
-            _debug("共享相同文件的种子：%s", [t.torrent.name for t in same_torrents])
-            for torrent in same_torrents:
-                duplicates[torrent.torrent.hash] = [hashes[h] for h in (hashes.keys() - {torrent.torrent.hash})]
+            if len(same_torrents) > 1:
+                hashes = dict((t.torrent.hash, t) for t in same_torrents)
+                _debug("共享相同文件的种子：%s", [t.torrent.name for t in same_torrents])
+                for torrent in same_torrents:
+                    duplicates[torrent.torrent.hash] = [hashes[h] for h in (hashes.keys() - {torrent.torrent.hash})]
+            else:
+                duplicates[same_torrents[0].torrent.hash] = []
         return total / 1000 ** 3, duplicates
