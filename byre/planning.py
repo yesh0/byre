@@ -130,7 +130,7 @@ class Planner:
         for _, same_torrents in path_torrents.items():
             if len(same_torrents) > 1:
                 hashes = dict((t.torrent.hash, t) for t in same_torrents)
-                _debug("共享相同文件的种子：%s", [t.torrent.name for t in same_torrents])
+                _debug("共享相同文件的种子：\n%s", "\n".join(t.torrent.name for t in same_torrents))
                 for torrent in same_torrents:
                     duplicates[torrent.torrent.hash] = [hashes[h] for h in (hashes.keys() - {torrent.torrent.hash})]
             else:
