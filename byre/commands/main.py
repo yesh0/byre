@@ -227,6 +227,8 @@ class MainCommand(ConfigurableGroup):
         else:
             _info("准备下载指定种子，将种子的价值设为无穷，去除单次下载量上限")
             candidates = [(target, math.inf)]
+            if exists:
+                self.planner.max_total_size = 1e12
             self.planner.max_download_size = self.planner.max_total_size
         if print_scores:
             pretty.pretty_scored_torrents(candidates[:10])
@@ -235,7 +237,7 @@ class MainCommand(ConfigurableGroup):
         disk_remaining = self._get_disk_remaining()
         removable, downloadable, duplicates = self.planner.plan(
             local, scored_local, candidates,
-            disk_remaining, self.store,
+            1e12 if exists else disk_remaining, self.store,
         )
         estimates = self.planner.estimate(local, removable, downloadable, self.store)
         summary = "\n".join((
