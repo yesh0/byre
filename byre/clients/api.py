@@ -183,13 +183,13 @@ class NexusApi(metaclass=ABCMeta):
                 if field == "分享率":
                     user.ratio = float(value)
                 elif field == "上传量":
-                    user.uploaded = utils.convert_nexus_size(value)
+                    user.uploaded = utils.convert_iec_size(value)
                 elif field == "下载量":
-                    user.downloaded = utils.convert_nexus_size(value)
+                    user.downloaded = utils.convert_iec_size(value)
 
         if _UPLOADED in info:
             # 北洋园只有上传量。
-            user.uploaded = utils.convert_nexus_size(info[_UPLOADED].get_text(strip=True))
+            user.uploaded = utils.convert_iec_size(info[_UPLOADED].get_text(strip=True))
 
     def torrent(self, seed_id: int) -> TorrentInfo:
         """获取种子详情。"""
@@ -349,7 +349,7 @@ class NexusApi(metaclass=ABCMeta):
 
     @classmethod
     def _extract_page_size(cls, page: bs4.Tag) -> float:
-        return utils.convert_nexus_size(page.select_one("span#type").parent.find(text=re.compile("\\d")).text)
+        return utils.convert_iec_size(page.select_one("span#type").parent.find(text=re.compile("\\d")).text)
 
     @classmethod
     def _extract_page_upload_time(cls, page: bs4.Tag) -> datetime.datetime:
@@ -382,13 +382,13 @@ class NexusApi(metaclass=ABCMeta):
             cat = cells[0].select_one("img").attrs["title"]
             comments = utils.int_or(cells[comment_cell].get_text(strip=True), 0) if comment_cell is not None else 0
             uploaded_at = self._extract_updated_at(cells, live_time_cell)
-            size = utils.convert_nexus_size(cells[size_cell].get_text(strip=True)) if size_cell is not None else 0.
+            size = utils.convert_iec_size(cells[size_cell].get_text(strip=True)) if size_cell is not None else 0.
             seeders = utils.int_or(cells[seeder_cell].get_text(strip=True)) if seeder_cell is not None else 0
             leechers = utils.int_or(cells[leecher_cell].get_text(strip=True)) if leecher_cell is not None else 0
             finished = utils.int_or(cells[finished_cell].get_text(strip=True)) if finished_cell is not None else 0
-            uploaded = utils.convert_nexus_size(
+            uploaded = utils.convert_iec_size(
                 cells[uploaded_cell].get_text(strip=True)) if uploaded_cell is not None else 0
-            downloaded = utils.convert_nexus_size(
+            downloaded = utils.convert_iec_size(
                 cells[downloaded_cell].get_text(strip=True)) if downloaded_cell is not None else 0
             ratio = utils.float_or(cells[ratio_cell].get_text(strip=True)) if ratio_cell is not None else 0.
             if uploader_cell is not None:

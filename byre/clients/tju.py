@@ -125,7 +125,7 @@ class TjuPtApi(NexusApi):
     @classmethod
     @override
     def _extract_page_size(cls, page: bs4.Tag) -> float:
-        return utils.convert_nexus_size(cls._extract_basic_info_row(page)["大小:"])
+        return utils.convert_iec_size(cls._extract_basic_info_row(page)["大小:"])
 
     @classmethod
     @override

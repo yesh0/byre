@@ -24,7 +24,7 @@ _logger = logging.getLogger("byre.utils")
 _warning = _logger.warning
 
 
-def convert_nexus_size(size: str) -> float:
+def convert_iec_size(size: str) -> float:
     """
     将文字形式的 xx MB 转换为字节数。
 
@@ -33,7 +33,7 @@ def convert_nexus_size(size: str) -> float:
     """
     size = size.strip()
     if size.isdigit():
-        _warning("“%s”不带单位，默认使用 GiB")
+        _warning("“%s”不带单位，默认使用 GiB", size)
         size = f"{size} GiB"
 
     unit_sets = [

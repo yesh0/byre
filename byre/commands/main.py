@@ -61,11 +61,11 @@ class MainCommand(ConfigurableGroup):
             cost_recovery_days=config.optional(float, 7., "scoring", "cost_recovery_days"),
             removal_exemption_days=config.optional(float, 15., "scoring", "removal_exemption_days"),
         )
-        max_total_size = utils.convert_nexus_size(config.optional(str, "0", "planning", "max_total_size"))
+        max_total_size = utils.convert_iec_size(config.optional(str, "0", "planning", "max_total_size"))
         self.planner = planning.Planner(
             max_total_size=max_total_size,
-            max_download_size=utils.convert_nexus_size(
-                config.optional(str, f"{max_total_size / 50}", "planning", "max_download_size")),
+            max_download_size=utils.convert_iec_size(
+                config.optional(str, f"{max_total_size / 50} B", "planning", "max_download_size")),
         )
         self.store = storage.TorrentStore(config.require(str, "qbittorrent", "cache_database"))
         self.config = config
