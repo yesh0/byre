@@ -111,7 +111,7 @@ class NexusApi(metaclass=ABCMeta):
         排名部分北邮人是 `font.color_bonus` + “上传排行”，北洋园是 `span.color_active` + “上传排名”……
         没想好怎么比较好地兼容不同的站点，总之这里写的是北邮人的版本，有需要的重载吧。
         """
-        ranking_tag = next(tag for tag in page.select("#info_block font.color_bonus") if "上传排行" in tag.text)
+        ranking_tag = next(tag for tag in page.select("#info_block .color_bonus") if "上传排行" in tag.text)
         ranking = ranking_tag.next_sibling.text.strip()
         return int(ranking)
 
