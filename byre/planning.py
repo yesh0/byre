@@ -16,6 +16,7 @@
 """根据评分给出种子选择结果。"""
 
 import logging
+import os
 from dataclasses import dataclass
 
 import psutil
@@ -59,8 +60,8 @@ class Planner:
         used, duplicates = self.merge_torrent_info(local_torrents, cache)
         # removable_hashes 用于检查共用文件的种子是否可以移除，以及它们共享分数。
         removable_hashes: dict[str, float] = dict((t.torrent.hash, score) for t, score in local)
-        # 以北邮人种子为主
-        local = [t for t in local if t[0].site == "byr"]
+        # 以北邮人种子为主。
+        local = [t for t in local if t[0].site == "byr" and self.is_under_current_dir(t[0].torrent.save_path)]
 
         disk_remaining = self.get_disk_remaining()
         # 会有误差，所以可能会可用空间出现差一点点的情况……
@@ -125,13 +126,15 @@ class Planner:
         remaining = psutil.disk_usage(self.download_dir).free
         return remaining
 
-    @classmethod
-    def merge_torrent_info(cls, local_torrents: list[LocalTorrent],
+    def merge_torrent_info(self, local_torrents: list[LocalTorrent],
                            cache: TorrentStore) -> tuple[float, dict[str, list[LocalTorrent]]]:
         total = 0.
         path_torrents = {}
         cached = cache.save_extra_torrents(local_torrents)
         for torrent, info in zip(local_torrents, cached):
+            if not self.is_under_current_dir(torrent.torrent.save_path):
+                # 不是当前下载目录的种子，跳过，不应统计。
+                continue
             if info.path_hash in path_torrents:
                 path_torrents[info.path_hash].append(torrent)
             else:
@@ -147,3 +150,13 @@ class Planner:
             else:
                 duplicates[same_torrents[0].torrent.hash] = []
         return total, duplicates
+
+    def is_under_current_dir(self, save_path: str):
+        parent = os.path.realpath(save_path)
+        while os.path.dirname(parent) != parent:
+            parent = os.path.dirname(parent)
+            if os.path.samefile(parent, self.download_dir):
+                # 暂时不支持嵌套树状结构（如 disk1 在 /mnt/disk1，disk2 在 /mnt/disk1/disk2）。
+                return True
+        else:
+            return False
