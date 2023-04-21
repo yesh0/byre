@@ -51,10 +51,10 @@ class NexusUser:
     """分享率。"""
 
     uploaded: float = 0.
-    """上传量（GB）。"""
+    """上传量（B）。"""
 
     downloaded: float = 0.
-    """下载量（GB）。"""
+    """下载量（B）。"""
 
     seeding: int = 0
     """当前活动上传数。"""
@@ -183,7 +183,7 @@ class TorrentInfo:
     """站点推荐（热门、经典、推荐这种）。"""
 
     file_size: float
-    """种子总大小（GB 或是 1000 ** 3 字节）。"""
+    """种子总大小（B）。"""
 
     live_time: float
     """存活时间（天）。"""
@@ -204,10 +204,10 @@ class TorrentInfo:
     """上传者。"""
 
     uploaded: float
-    """当前用户上传量。"""
+    """当前用户上传量（B）。"""
 
     downloaded: float
-    """当前用户下载量（GB）。"""
+    """当前用户下载量（B）。"""
 
     ratio: float
     """当前用户分享率。"""
@@ -248,15 +248,15 @@ class LocalTorrent:
             second_category="",
             promotions=TorrentPromotion.NONE,
             tag=TorrentTag.ANY,
-            file_size=self.torrent.size / 1000 ** 3,
+            file_size=self.torrent.size,
             live_time=(time.time() - self.torrent.last_activity) / (24 * 60 * 60),
             seeders=self.torrent.num_complete,
             leechers=self.torrent.num_incomplete,
             finished=0,
             comments=0,
             uploader=NexusUser(self.site),
-            uploaded=self.torrent.uploaded / 1000 ** 3,
-            downloaded=self.torrent.downloaded / 1000 ** 3,
+            uploaded=self.torrent.uploaded,
+            downloaded=self.torrent.downloaded,
             ratio=self.torrent.ratio,
             hash=self.torrent.hash,
         )

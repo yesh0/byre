@@ -39,10 +39,10 @@ class Planner:
     """贪心选择种子。"""
 
     max_total_size: float
-    """GB 计的种子总大小上限。"""
+    """种子总大小上限字节数。"""
 
     max_download_size: float
-    """GB 计的单次下载大小上限。"""
+    """单次下载大小上限字节数。"""
 
     def plan(self,
              local_torrents: list[LocalTorrent],
@@ -58,7 +58,8 @@ class Planner:
         # 以北邮人种子为主
         local = [t for t in local if t[0].site == "byr"]
 
-        max_total_size = used + disk_remaining - 0.01
+        # 会有误差，所以可能会可用空间出现差一点点的情况……
+        max_total_size = used + disk_remaining
         if self.max_total_size > 0:
             max_total_size = min(max_total_size, self.max_total_size)
 
@@ -90,7 +91,7 @@ class Planner:
                 # 我们以北邮人为主，其它站点说实话感觉不太活跃，分数不会太高。
                 if torrent_score >= score:
                     break
-                removable_size += torrent.torrent.size / 1000 ** 3
+                removable_size += torrent.torrent.size
                 if candidate.file_size < removable_size + remaining:
                     break
             if candidate.file_size < removable_size + remaining:
@@ -105,7 +106,7 @@ class Planner:
     def estimate(self, local_torrents: list[LocalTorrent], removable: list[LocalTorrent],
                  downloadable: list[TorrentInfo], cache: TorrentStore) -> SpaceChange:
         used, _ = self.merge_torrent_info(local_torrents, cache)
-        deleted = sum(t.torrent.size for t in removable) / 1000 ** 3
+        deleted = sum(t.torrent.size for t in removable)
         downloaded = sum(t.file_size for t in downloadable)
         return SpaceChange(
             before=used,
@@ -135,4 +136,4 @@ class Planner:
                     duplicates[torrent.torrent.hash] = [hashes[h] for h in (hashes.keys() - {torrent.torrent.hash})]
             else:
                 duplicates[same_torrents[0].torrent.hash] = []
-        return total / 1000 ** 3, duplicates
+        return total, duplicates

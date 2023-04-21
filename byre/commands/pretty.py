@@ -21,6 +21,7 @@ import tabulate
 from byre.clients import CLIENTS
 from byre.clients.api import NexusApi
 from byre.clients.data import TorrentInfo, NexusUser, LocalTorrent
+from byre.utils import S
 
 
 def parse_url_id(s: str):
@@ -38,7 +39,7 @@ def pretty_torrent_info(torrent: TorrentInfo):
         ("链接", click.style(CLIENTS[torrent.site].get_url(f"details.php?id={torrent.seed_id}"), underline=True)),
         ("类型", click.style(f"{torrent.cat} - {torrent.second_category}", fg="bright_red")),
         ("促销", click.style(str(torrent.promotions), fg="bright_yellow")),
-        ("大小", click.style(f"{torrent.file_size:.2f} GB", fg="cyan")),
+        ("大小", click.style(f"{S(torrent.file_size)}", fg="cyan")),
         ("存活时间", click.style(f"{torrent.live_time:.2f} 天", fg="bright_green")),
         ("做种人数", f"{torrent.seeders}"),
         ("下载人数", click.style(f"{torrent.leechers}", fg="bright_magenta")),
@@ -57,8 +58,8 @@ def pretty_user_info(user: NexusUser):
         ("等级", click.style(user.level, fg="bright_yellow")),
         ("魔力值", click.style(f"{user.mana}", fg="bright_magenta")),
         ("可连接", click.style("是", fg="bright_green") if user.connectable else click.style("否", dim=True)),
-        ("下载量", click.style(f"{user.downloaded:.2f} GB", fg="yellow")),
-        ("上传量", click.style(f"{user.uploaded:.2f} GB", fg="bright_blue")),
+        ("下载量", click.style(f"{S(user.downloaded)}", fg="yellow")),
+        ("上传量", click.style(f"{S(user.uploaded)}", fg="bright_blue")),
         ("分享率", click.style(f"{user.ratio:.2f}", fg="cyan")),
         ("当前活动", f"{user.seeding}↑ {user.downloading}↓"),
         ("上传排行", click.style(f"{user.ranking}", dim=True)),
@@ -76,7 +77,7 @@ def pretty_torrent_list(torrents: list[TorrentInfo]):
         table.append((
             t.seed_id,
             click.style(t.title, bold=True),
-            click.style(f"{t.file_size:.2f} GB", fg="bright_yellow"),
+            click.style(f"{S(t.file_size)}", fg="bright_yellow"),
         ))
         table.append((
             "",
@@ -100,8 +101,8 @@ def pretty_local_torrents(torrents: list[LocalTorrent], speed=False):
         table.append((
             click.style(f"{days:.2f} 天", fg="yellow"),
             click.style(t.torrent.name, bold=True),
-            click.style(f"{t.torrent.upspeed / 1000 ** 2:.2f} MB/s↑" if speed
-                        else f"{t.torrent.uploaded / 1000 ** 3:.2f} GB↑", fg="bright_green"),
+            click.style(f"{S(t.torrent.upspeed)}/s↑" if speed
+                        else f"{S(t.torrent.uploaded)}↑", fg="bright_green"),
             click.style(f"{t.torrent.ratio:.2f}", fg="bright_yellow"),
         ))
         table.append((
@@ -109,9 +110,9 @@ def pretty_local_torrents(torrents: list[LocalTorrent], speed=False):
             click.style(t.torrent.hash, dim=True)
             + " (" + click.style(f"{t.torrent.num_complete}↑", fg="bright_green")
             + " " + click.style(f"{t.torrent.num_incomplete}↓", fg="cyan") + " )",
-            click.style(f"{t.torrent.dlspeed / 1000 ** 3:.2f} MB/s↓" if speed
-                        else f"{t.torrent.downloaded / 1000 ** 3:.2f} GB↓", fg="cyan"),
-            click.style(f"/ {t.torrent.size / 1000 ** 3:.2f} GB", dim=True)
+            click.style(f"{S(t.torrent.dlspeed)}/s↓" if speed
+                        else f"{S(t.torrent.downloaded)}↓", fg="cyan"),
+            click.style(f"/ {S(t.torrent.size)}", dim=True)
         ))
     click.echo_via_pager(tabulate.tabulate(table, headers=header, maxcolwidths=limits, disable_numparse=True))
 
@@ -127,7 +128,7 @@ def pretty_rename(pending: list[LocalTorrent]) -> str:
             failed.append((
                 click.style("!!", fg="bright_red"),
                 click.style(t.torrent.name, fg="bright_red"),
-                f"{t.torrent.size / 1000 ** 3:.2f} gb",
+                f"{S(t.torrent.size)}",
                 t.torrent.hash[:7],
             ))
             failed.append((
@@ -139,13 +140,13 @@ def pretty_rename(pending: list[LocalTorrent]) -> str:
             found.append((
                 click.style("✓", fg="bright_green"),
                 click.style(t.torrent.name, fg="cyan"),
-                f"{t.torrent.size / 1000 ** 3:.2f} GB",
+                f"{S(t.torrent.size)}",
                 t.torrent.hash[:7]
             ))
             found.append((
                 arrow,
                 click.style(t.info.title, fg="bright_green"),
-                f"{t.info.file_size:.2f} GB",
+                f"{S(t.info.file_size)}",
                 t.info.hash[:7],
             ))
     return tabulate.tabulate((*failed, *found), maxcolwidths=[2, 50, 10, 10], disable_numparse=True)
@@ -161,7 +162,7 @@ def pretty_changes(removable: list[LocalTorrent], downloadable: list[TorrentInfo
             click.style("删", fg="bright_red"),
             click.style(f"{t.seed_id}", dim=True),
             click.style(t.torrent.name, dim=True),
-            click.style(f"-{t.torrent.size / 1000 ** 3:.2f} GB", fg="bright_green"),
+            click.style(f"-{S(t.torrent.size)}", fg="bright_green"),
             "",
         ))
         for dup in duplicates[t.torrent.hash]:
@@ -178,7 +179,7 @@ def pretty_changes(removable: list[LocalTorrent], downloadable: list[TorrentInfo
             click.style("新", fg="bright_cyan"),
             click.style(f"{t.seed_id}", dim=True),
             click.style(t.title, bold=True),
-            click.style(f"+{t.file_size:.2f} GB", fg="yellow"),
+            click.style(f"+{S(t.file_size)}", fg="yellow"),
             click.style(str(t.promotions), fg="yellow"),
         ) for t in downloadable),
     ), maxcolwidths=[2, 8, 42, 10, 10], disable_numparse=True)
@@ -195,7 +196,7 @@ def pretty_scored_torrents(torrents: list[tuple[TorrentInfo, float]]):
         table.append((
             click.style(f"{score:.2f}", fg="bright_yellow"),
             click.style(t.title, bold=True),
-            click.style(f"{t.file_size:.2f} GB", fg="yellow"),
+            click.style(f"{S(t.file_size)}", fg="yellow"),
         ))
         table.append((
             "",
@@ -213,10 +214,10 @@ def pretty_comparison(local: LocalTorrent, torrent: TorrentInfo, local_files: di
     r_arrow = click.style("==>", fg="bright_green")
     l_arrow = click.style("<==", fg="bright_yellow")
     table = [
-        (r_arrow, local.torrent.name, f"{local.torrent.size / 1000 ** 3:.2f} GB"),
-        (l_arrow, torrent.title, f"{torrent.file_size:.2f} GB"),
+        (r_arrow, local.torrent.name, f"{S(local.torrent.size)}"),
+        (l_arrow, torrent.title, f"{S(torrent.file_size)}"),
     ]
     for filename, size in local_files.items():
-        table.append((r_arrow, filename, f"{size / 1000 ** 3:.2f} GB"))
-        table.append((l_arrow, filename, f"{remote_files[filename] / 1000 ** 3:.2f} GB"))
+        table.append((r_arrow, filename, f"{S(size)}"))
+        table.append((l_arrow, filename, f"{S(remote_files[filename])}"))
     click.echo_via_pager(tabulate.tabulate(table, maxcolwidths=[3, 60, 10], disable_numparse=True))

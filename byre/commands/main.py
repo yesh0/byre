@@ -25,7 +25,7 @@ import click
 import psutil
 from overrides import override
 
-from byre import scoring, planning, storage
+from byre import scoring, planning, storage, utils
 from byre.clients import SITES
 from byre.clients.api import NexusSortableField
 from byre.clients.data import UserTorrentKind, TorrentInfo, LocalTorrent, TorrentPromotion, PROMOTION_FREE
@@ -33,6 +33,7 @@ from byre.commands import pretty
 from byre.commands.bt import BtCommand
 from byre.commands.config import GlobalConfig, ConfigurableGroup
 from byre.commands.nexus import ByrCommand, NexusCommand
+from byre.utils import S
 
 _logger = logging.getLogger("byre.commands.main")
 _debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
@@ -60,10 +61,11 @@ class MainCommand(ConfigurableGroup):
             cost_recovery_days=config.optional(float, 7., "scoring", "cost_recovery_days"),
             removal_exemption_days=config.optional(float, 15., "scoring", "removal_exemption_days"),
         )
-        max_total_size = config.optional(float, 0., "planning", "max_total_size")
+        max_total_size = utils.convert_nexus_size(config.optional(str, "0", "planning", "max_total_size"))
         self.planner = planning.Planner(
             max_total_size=max_total_size,
-            max_download_size=config.optional(float, max_total_size / 50, "planning", "max_download_size"),
+            max_download_size=utils.convert_nexus_size(
+                config.optional(str, f"{max_total_size / 50}", "planning", "max_download_size")),
         )
         self.store = storage.TorrentStore(config.require(str, "qbittorrent", "cache_database"))
         self.config = config
@@ -111,20 +113,22 @@ class MainCommand(ConfigurableGroup):
         local = self.bt.api.list_torrents([])
         total, duplicates = self.planner.merge_torrent_info(local, self.store)
         finished = sum(t.torrent.amount_left == 0 for t in local)
-        amount_left = sum(t.torrent.amount_left for t in local) / 1000 ** 3
-        dl_speed = sum(t.torrent.dlspeed for t in local) / 1000 ** 2
-        up_speed = sum(t.torrent.upspeed for t in local) / 1000 ** 2
-        uploaded = sum(t.torrent.uploaded for t in local) / 1000 ** 3
-        uploaded_session = sum(t.torrent.uploaded_session for t in local) / 1000 ** 3
-        click.echo(f"当前管理种子数：{len(local)}，下载完成数 {finished}，剩余下载量 {amount_left:.2f} GB")
-        click.echo(f"上传速度 {up_speed:.2f} MB/s，下载速度 {dl_speed:.2f} MB/s")
-        click.echo(f"当前种子总上传量 {uploaded:.2f} GB，最近一次重启后上传量 {uploaded_session:.2f} GB")
-        click.echo(f"当前本地种子已用空间 {total:.2f} GB，使用空间上限为 {self.planner.max_total_size:.2f} GB")
+        amount_left = sum(t.torrent.amount_left for t in local)
+        dl_speed = sum(t.torrent.dlspeed for t in local)
+        up_speed = sum(t.torrent.upspeed for t in local)
+        uploaded = sum(t.torrent.uploaded for t in local)
+        uploaded_session = sum(t.torrent.uploaded_session for t in local)
+        click.echo(f"当前管理种子数：{len(local)}，"
+                   f"下载完成数 {finished}，"
+                   f"剩余下载量 {S(amount_left)}")
+        click.echo(f"上传速度 {S(up_speed)}/s，下载速度 {S(dl_speed)}/s")
+        click.echo(f"当前种子总上传量 {S(uploaded)}，最近一次重启后上传量 {S(uploaded_session)}")
+        click.echo(f"当前本地种子已用空间 {S(total)}，使用空间上限为 {S(self.planner.max_total_size)}")
         remaining = self._get_disk_remaining()
-        click.echo(f"当前下载目录分区剩余空间 {remaining:.2f} GB")
+        click.echo(f"当前下载目录分区剩余空间 {S(remaining)}")
 
     def _get_disk_remaining(self):
-        remaining = psutil.disk_usage(self.bt.api.download_dir).free / 1000 ** 3
+        remaining = psutil.disk_usage(self.bt.api.download_dir).free
         return remaining
 
     @click.command(name="download")
@@ -196,10 +200,10 @@ class MainCommand(ConfigurableGroup):
             for torrent in page:
                 if torrent.seed_id in existing_set:
                     continue
-                # 只匹配总大小误差在 ~0.03 GB 范围内的种子。
-                i = bisect.bisect_left(local_byr, (torrent.file_size - 0.03) * 1000 ** 3)
+                # 只匹配总大小误差在 1% 范围内的种子。
+                i = bisect.bisect_left(local_byr, 0.99 * torrent.file_size)
                 for local in byr_torrents[i:]:
-                    if (torrent.file_size + 0.03) * 1000 ** 3 < local.torrent.size:
+                    if 1.01 * torrent.file_size < local.torrent.size:
                         break
                     # 最严格的是一个一个区块的哈希比较，但是可能会有重新做种块大小改变的情况。
                     # 总之这些 PT 站还是比较严格的，文件名大概率有格式可寻，不同种子文件名不同，
@@ -242,12 +246,12 @@ class MainCommand(ConfigurableGroup):
         estimates = self.planner.estimate(local, removable, downloadable, self.store)
         summary = "\n".join((
             "更改总结：",
-            f"最大允许空间占用 {self.planner.max_total_size:.2f} GB，"
-            f"本次最大下载量为 {self.planner.max_download_size:.2f} GB",
-            f"目前总空间占用 {estimates.before:.2f} GB，"
-            f"最后预期总占用 {estimates.after:.2f} GB",
-            f"将会删除 {len(removable)} 项内容（共计 {estimates.to_be_deleted:.2f} GB），"
-            f"将会下载 {len(downloadable)} 项内容（共计 {estimates.to_be_downloaded:.2f} GB）",
+            f"最大允许空间占用 {S(self.planner.max_total_size)}，"
+            f"本次最大下载量为 {S(self.planner.max_download_size)}",
+            f"目前总空间占用 {S(estimates.before)}，"
+            f"最后预期总占用 {S(estimates.after)}",
+            f"将会删除 {len(removable)} 项内容（共计 {S(estimates.to_be_deleted)}），"
+            f"将会下载 {len(downloadable)} 项内容（共计 {S(estimates.to_be_downloaded)}）",
             pretty.pretty_changes(removable, downloadable, duplicates)
         ))
         if print_scores:

@@ -111,12 +111,16 @@ class Scorer:
 
     def score_uploading(self, torrent: LocalTorrent) -> float:
         """为某个正在上传的种子的价值评分，输出是每天预期的分享率。负分不应被删除。"""
-        if torrent.torrent.upspeed > 5 * 1024:
+        # 不删除正在上传的种子。
+        if torrent.torrent.upspeed > 0:
             return -1.
+        # 不删除没下载完的种子。
         if torrent.torrent.amount_left > 0:
             return -1.
+        # 不删除豁免期内的种子。
         if torrent.torrent.completion_on + (self.removal_exemption_days * 24 * 60 * 60) > time.time():
             return -1.
+        # 不删除标记了 keep 的种子。
         if "keep" in torrent.torrent.tags:
             return -1.
         info = torrent.estimate_info()
