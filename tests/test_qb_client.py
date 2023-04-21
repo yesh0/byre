@@ -18,8 +18,10 @@ import shutil
 import tempfile
 import unittest
 
-from byre import CATEGORIES, ByrApi, TorrentPromotion, NexusSortableField
 from byre.bt import BtClient
+from byre.clients.api import NexusSortableField
+from byre.clients.byr import ByrApi
+from byre.clients.data import CATEGORIES, TorrentPromotion
 # noinspection PyUnresolvedReferences
 import context
 import test_client
@@ -28,9 +30,9 @@ import test_client
 class BtClientTestCase(unittest.TestCase):
     def test_qbittorrent_connection(self):
         path = tempfile.mkdtemp()
-        client = BtClient(os.environ.get("QB_URL", ""), path)
+        client = BtClient(os.environ.get("QB_URL", ""))
         client.remove_categories(CATEGORIES.values())
-        client.init_categories(CATEGORIES.values())
+        client.init_categories(path, CATEGORIES.values())
         for category in CATEGORIES.values():
             self.assertTrue(os.path.exists(os.path.join(path, category)))
             self.assertTrue(os.path.exists(os.path.join(path, "Torrents", category)))
@@ -39,7 +41,7 @@ class BtClientTestCase(unittest.TestCase):
 
     def test_tag_init(self):
         path = tempfile.mkdtemp()
-        client = BtClient(os.environ.get("QB_URL", ""), path)
+        client = BtClient(os.environ.get("QB_URL", ""))
         client.init_tags()
         self.assertIn("byr", client.client.torrents_tags())
         client.init_tags(reset=True)
@@ -48,15 +50,15 @@ class BtClientTestCase(unittest.TestCase):
 
     def test_add_torrent(self):
         path = tempfile.mkdtemp()
-        client = BtClient(os.environ.get("QB_URL", ""), path)
+        client = BtClient(os.environ.get("QB_URL", ""))
         client.init_tags()
-        client.init_categories(["Others"])
+        client.init_categories(path, ["Others"])
         byr = ByrApi(test_client.login(path))
         torrent = byr.list_torrents(page=0, promotion=TorrentPromotion.NONE,
                                     sorted_by=NexusSortableField.LIVE_TIME, desc=False)[0]
 
         torrent.category = "Others"
-        client.add_torrent(byr.download_torrent(torrent.seed_id), torrent, paused=True)
+        client.add_torrent(byr.download_torrent(torrent.seed_id), torrent, path, paused=True)
         local = [t for t in client.list_torrents([]) if torrent.title in t.torrent.name]
         self.assertEqual(1, len(local))
         client.remove_torrent(local[0])

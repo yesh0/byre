@@ -18,14 +18,15 @@ import shutil
 import tempfile
 import unittest
 
-import byre
+from byre.clients.byr import *
 # noinspection PyUnresolvedReferences
 import context
+from byre.clients.data import PROMOTION_FREE
 
 
 def login(path):
-    return byre.ByrClient(os.environ.get("USERNAME", ""), os.environ.get("PASSWORD", ""),
-                          cookie_file=os.path.join(path, "dir", "byr.cookies"))
+    return ByrClient(os.environ.get("USERNAME", ""), os.environ.get("PASSWORD", ""),
+                     cookie_file=os.path.join(path, "dir", "byr.cookies"))
 
 
 class TestByrClient(unittest.TestCase):
@@ -37,8 +38,8 @@ class TestByrClient(unittest.TestCase):
         self.assertTrue(client.is_logged_in())
         client.close()
 
-        client = byre.ByrClient(os.environ.get("USERNAME", ""), "",
-                                cookie_file=os.path.join(path, "dir", "byr.cookies"))
+        client = ByrClient(os.environ.get("USERNAME", ""), "",
+                           cookie_file=os.path.join(path, "dir", "byr.cookies"))
         self.assertFalse(client.is_logged_in())
         client.login(cache=True)
         self.assertTrue(client.is_logged_in())
@@ -48,9 +49,9 @@ class TestByrClient(unittest.TestCase):
 
     def test_user_info(self):
         path = tempfile.mkdtemp()
-        client = byre.ByrClient(os.environ.get("USERNAME", ""), os.environ.get("PASSWORD", ""),
-                                cookie_file=os.path.join(path, "dir", "byr.cookies"))
-        api = byre.ByrApi(client)
+        client = ByrClient(os.environ.get("USERNAME", ""), os.environ.get("PASSWORD", ""),
+                           cookie_file=os.path.join(path, "dir", "byr.cookies"))
+        api = ByrApi(client)
         self.assertNotEqual(0, api.current_user_id())
         self.assertEqual(int(os.environ.get("USER_ID", "0")), api.current_user_id())
 
@@ -71,13 +72,13 @@ class TestByrClient(unittest.TestCase):
     def test_torrent_table_parsing(self):
         path = tempfile.mkdtemp()
         client = login(path)
-        api = byre.ByrApi(client)
+        api = ByrApi(client)
         torrents = api.list_torrents()
         self.assertNotEqual(0, len(torrents))
         for torrent in torrents:
             self.assertNotEqual("Others", torrent.category)
         # 大多时候都会有免费种子的吧？
-        self.assertTrue(any(byre.PROMOTION_FREE in t.promotions for t in torrents))
+        self.assertTrue(any(PROMOTION_FREE in t.promotions for t in torrents))
         # 大多时候种子都会是比较新的吧？
         self.assertTrue(any(t.live_time < 3 for t in torrents))
         shutil.rmtree(path)
@@ -85,7 +86,7 @@ class TestByrClient(unittest.TestCase):
     def test_uploading_listing(self):
         path = tempfile.mkdtemp()
         client = login(path)
-        api = byre.ByrApi(client)
+        api = ByrApi(client)
         torrents = api.list_user_torrents()
         if len(torrents) != 0:
             self.assertTrue(any(t.uploaded + t.downloaded > 0 for t in torrents))

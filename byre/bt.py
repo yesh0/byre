@@ -32,11 +32,9 @@ _debug, _info, _warning, _fatal = _logger.debug, _logger.info, _logger.warning, 
 class BtClient:
     """对 qBittorrent 客户端的各种操作进行封装。"""
 
-    def __init__(self, url: str, download_dir: str) -> None:
+    def __init__(self, url: str) -> None:
         info = urlparse(url)
         scheme = info.scheme or "http"
-        #: 下载路径。
-        self.download_dir = os.path.realpath(download_dir)
         #: qBittorrent 连接。
         self.client = qbittorrentapi.Client(
             host=f"{scheme}://{info.hostname}",
@@ -56,14 +54,14 @@ class BtClient:
             "web_ui_password": password,
         })
 
-    def init_categories(self, categories: typing.Iterable[str]) -> None:
+    def init_categories(self, download_dir: str, categories: typing.Iterable[str]) -> None:
         """创建类别并设置下载目录，不会更改现有类别的设置。"""
         existing = set(self.client.torrents_categories().keys())
         for category in categories:
             if category in existing:
                 _debug("类别“%s”已存在，跳过创建", category)
                 continue
-            download_dir = os.path.join(self.download_dir, category)
+            download_dir = os.path.join(os.path.realpath(download_dir), category)
             _debug("正在创建类别“%s”", category)
             self.client.torrents_create_category(
                 category,
@@ -92,8 +90,8 @@ class BtClient:
                 continue
             _debug("无需创建/删除“%s”", tag)
 
-    def add_torrent(self, torrent: bytes, info: TorrentInfo, paused: bool = False,
-                    exists: typing.Union[bool, LocalTorrent] = False) -> None:
+    def add_torrent(self, torrent: bytes, info: TorrentInfo, download_dir: str,
+                    paused: bool = False, exists: typing.Union[bool, LocalTorrent] = False) -> None:
         """添加种子并设置对应的类别和标签。"""
         title = self._generate_rename(info)
         _info("正在添加种子“%s”", title)
@@ -101,7 +99,7 @@ class BtClient:
             save_path = exists.torrent.save_path
             _info("将种子设定保存路径设为 %s 并取消哈希检查", save_path)
         else:
-            save_path = self._get_download_dir(info)
+            save_path = self._get_download_dir(download_dir, info)
         self.client.torrents_add(
             torrent_files=torrent,
             save_path=save_path,
@@ -163,10 +161,12 @@ class BtClient:
                 return LocalTorrent(torrent, seed_id, site, None)
         raise ValueError(f"种子命名不符合要求：{name}")
 
-    def _get_download_dir(self, torrent: TorrentInfo) -> str:
+    @classmethod
+    def _get_download_dir(cls, download_dir: str, torrent: TorrentInfo) -> str:
         """下载目录，由种子分类及二级分类决定。"""
-        return (os.path.join(self.download_dir, torrent.category, torrent.second_category)
-                if torrent.second_category else os.path.join(self.download_dir, torrent.category))
+        realpath = os.path.realpath(download_dir)
+        return (os.path.join(realpath, torrent.category, torrent.second_category)
+                if torrent.second_category else os.path.join(realpath, torrent.category))
 
     @staticmethod
     def _generate_rename(info: TorrentInfo) -> str:

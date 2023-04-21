@@ -18,9 +18,10 @@
 import logging
 from dataclasses import dataclass
 
+import psutil
+
 from byre.clients.data import LocalTorrent, TorrentInfo
 from byre.storage import TorrentStore
-
 
 _logger = logging.getLogger("byre.planning")
 _debug = _logger.debug
@@ -44,12 +45,15 @@ class Planner:
     max_download_size: float
     """单次下载大小上限字节数。"""
 
+    download_dir: str
+    """下载目录，用于计算剩余空间上限。"""
+
     def plan(self,
              local_torrents: list[LocalTorrent],
              local: list[tuple[LocalTorrent, float]],
              remote: list[tuple[TorrentInfo, float]],
-             disk_remaining: float,
              cache: TorrentStore,
+             exists=False,
              ) -> tuple[list[LocalTorrent], list[TorrentInfo], dict[str, list[LocalTorrent]]]:
         # duplicates 用于检查共用文件的种子。
         used, duplicates = self.merge_torrent_info(local_torrents, cache)
@@ -58,6 +62,7 @@ class Planner:
         # 以北邮人种子为主
         local = [t for t in local if t[0].site == "byr"]
 
+        disk_remaining = self.get_disk_remaining()
         # 会有误差，所以可能会可用空间出现差一点点的情况……
         max_total_size = used + disk_remaining
         if self.max_total_size > 0:
@@ -73,10 +78,11 @@ class Planner:
             if score == 0.:
                 break
             # 能下载就直接下载。
-            if candidate.file_size < remaining:
-                remaining -= candidate.file_size
+            if candidate.file_size < remaining or exists:
+                if not exists:
+                    remaining -= candidate.file_size
+                    downloaded += candidate.file_size
                 downloadable.append(candidate)
-                downloaded += candidate.file_size
                 continue
             # 否则尝试移除分数相对低的本地种子。
             removable_size = 0
@@ -104,16 +110,20 @@ class Planner:
         return removable, downloadable, duplicates
 
     def estimate(self, local_torrents: list[LocalTorrent], removable: list[LocalTorrent],
-                 downloadable: list[TorrentInfo], cache: TorrentStore) -> SpaceChange:
+                 downloadable: list[TorrentInfo], cache: TorrentStore, exists=False) -> SpaceChange:
         used, _ = self.merge_torrent_info(local_torrents, cache)
         deleted = sum(t.torrent.size for t in removable)
-        downloaded = sum(t.file_size for t in downloadable)
+        downloaded = 0 if exists else sum(t.file_size for t in downloadable)
         return SpaceChange(
             before=used,
             to_be_deleted=deleted,
             to_be_downloaded=downloaded,
             after=used - deleted + downloaded,
         )
+
+    def get_disk_remaining(self):
+        remaining = psutil.disk_usage(self.download_dir).free
+        return remaining
 
     @classmethod
     def merge_torrent_info(cls, local_torrents: list[LocalTorrent],

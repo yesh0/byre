@@ -47,13 +47,10 @@ http_proxy = ""
 # - “用户名”和“密码”也在 Web UI 设置里。
 url = "http://qBittorrent用户名:qBittorrent密码@localhost:8080"
 
-# (*) 下载目录
-download_dir = "/home/pi/Downloads"
-
 # 种子数据缓存
 cache_database = "byre.db"
 
-[planning]
+[planning.disk1]
 # 实际可用空间的规划相关
 
 # (*) 总可用空间上限，脚本会控制本地北邮人种子的总大小不超过上限
@@ -64,6 +61,16 @@ max_total_size = "400 GiB"
 
 # (*) 单次下载的下载量上限
 max_download_size = "25 GiB"
+
+# (*) 下载目录
+download_dir = "/home/pi/Downloads"
+
+# # 多个硬盘 / 分区：每个分区对应一个 [planning.xxxx] 的段落，保证各自有对应的 download_dir 即可。
+# # 下面的是一个例子：
+# [planning.my_smaller_disk2]
+# max_total_size = "200 GiB"
+# max_download_size = "25 GiB"
+# download_dir = "/home/pi/MySmallerDisk2"
 
 [scoring]
 # 种子评分相关，一些程序判断种子“价值”高低的参数
