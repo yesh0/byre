@@ -119,12 +119,12 @@ class NexusApi(metaclass=ABCMeta):
     def _extract_info_bar(cls, user: NexusUser, page: bs4.Tag) -> None:
         user.ranking = cls._extract_info_bar_ranking(page)
 
-        up_arrow = page.select_one("#info_block img.arrowup[title=当前做种]")
+        up_arrow = page.select_one("#info_block img.arrowup")
         seeding = str("0" if up_arrow is None else up_arrow.next).strip()
         if seeding.isdigit():
             user.seeding = int(seeding)
 
-        down_arrow = page.select_one("#info_block img.arrowdown[title=当前下载]")
+        down_arrow = page.select_one("#info_block img.arrowdown")
         downloading = str("0" if down_arrow is None else down_arrow.next).strip()
         if downloading.isdigit():
             user.downloading = int(downloading)
