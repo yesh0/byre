@@ -64,7 +64,7 @@ class ByrClient(NexusClient):
 
         login_page = self.get_soup("login.php")
         img_url = self.get_url(
-            login_page.select("#nav_block > form > table > tr:nth-of-type(3) img")[0].attrs["src"]
+            login_page.select("img[src^=\"image.php\"]")[0].attrs["src"]
         )
         captcha_text = self._decaptcha.decode(Image.open(io.BytesIO(self._session.get(img_url).content)))
         _debug("验证码解析结果：%s", captcha_text)
