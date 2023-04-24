@@ -20,6 +20,7 @@ dependencies = [
     "overrides>=7.3.1",
     "bencoder-pyx>=3.0.1",
     "psutil>=5.9.4",
+    "appdirs>=1.4.4",
 ]
 requires-python = ">=3.8"
 readme = "README.md"

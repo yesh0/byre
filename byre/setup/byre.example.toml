@@ -4,12 +4,12 @@
 # 北邮人相关设置
 
 # (*) 北邮人用户名
-username = "用户名用户名用户名"
+username = "{byr_username}"
 # (*) 北邮人账户密码，其实也可以整一行删掉，在实际跑脚本时输入
-password = "密码密码密码"
+password = "{byr_password}"
 
 # 登录信息缓存文件路径
-cookie_cache = "byr.cookies"
+cookie_cache = "{byr_cookies}"
 
 # 访问北邮人用的 HTTP 代理，不知道有什么用，总之放在这里，有想要折腾的可以试试
 http_proxy = ""
@@ -18,12 +18,12 @@ http_proxy = ""
 # 北洋园相关设置
 
 # (*) 北洋园用户名
-username = "用户名用户名用户名"
+username = "{tju_username}"
 # (*) 北洋园账户密码
-password = "密码密码密码"
+password = "{tju_password}"
 
 # 登录信息缓存文件路径
-cookie_cache = "tju.cookies"
+cookie_cache = "{tju_cookies}"
 
 # 访问北洋园用的 HTTP 代理
 http_proxy = ""
@@ -45,25 +45,25 @@ http_proxy = ""
 # - “端口”通常是 8080，这个在 qBittorrent Web UI 设置最顶头的位置。
 #
 # - “用户名”和“密码”也在 Web UI 设置里。
-url = "http://qBittorrent用户名:qBittorrent密码@localhost:8080"
+url = "{qbt_url}"
 
 # 种子数据缓存
-cache_database = "byre.db"
+cache_database = "{cache_db}"
 
-[planning.disk1]
+[planning.partition_0]
 # 实际可用空间的规划相关
 
 # (*) 总可用空间上限，脚本会控制本地北邮人种子的总大小不超过上限
 #
 # 不用太在意格式，"400.0     G", "400GB", 400 其实都可以，不带单位的时候默认为 GiB。
 # 0 或者负数意味着脚本会将总上限设为刚好能把硬盘下满的大小。
-max_total_size = "400 GiB"
+max_total_size = "{max_total_size}"
 
 # (*) 单次下载的下载量上限
-max_download_size = "25 GiB"
+max_download_size = "{max_download_size}"
 
 # (*) 下载目录
-download_dir = "/home/pi/Downloads"
+download_dir = "{download_dir}"
 
 # # 多个硬盘 / 分区：每个分区对应一个 [planning.xxxx] 的段落，保证各自有对应的 download_dir 即可。
 # # 下面的是一个例子：
@@ -72,6 +72,8 @@ download_dir = "/home/pi/Downloads"
 # max_download_size = "25 GiB"
 # download_dir = "/home/pi/MySmallerDisk2"
 
+# {extra_partitions}
+
 [scoring]
 # 种子评分相关，一些程序判断种子“价值”高低的参数
 
@@ -79,7 +81,7 @@ download_dir = "/home/pi/Downloads"
 free_weight = 1.0
 
 # “回本”的天数阈值，如果一个种子预估的回本天数大于此，那它的价值就会被直接判定为零
-cost_recovery_days = 7.0
+cost_recovery_days = {cost_recovery_days}
 
 # 下载之后的删除豁免天数，一个种子下载后的这段时间内不会被删除
-removal_exemption_days = 15.0
+removal_exemption_days = {removal_exemption_days}

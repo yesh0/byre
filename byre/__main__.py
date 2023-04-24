@@ -63,11 +63,9 @@ MainCommand(bt, byr, tju).register(main)
 
 
 @main.command(name="setup")
-@click.pass_context
-def setup_qbittorrent(ctx: click.Context):
-    """下载并配置 qBittorrent-nox。"""
-    conf: GlobalConfig = ctx.obj["config"]
-    setup.setup(conf.require(str, "qbittorrent", "url"))
+def setup_byre():
+    """配置 byre、下载并配置 qBittorrent-nox。"""
+    setup.setup()
 
 
 def entry_point():

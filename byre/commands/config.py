@@ -13,7 +13,6 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import importlib.resources
 import logging
 import os
 import pathlib
@@ -22,6 +21,8 @@ from abc import ABCMeta, abstractmethod
 
 import click
 import tomli
+
+from byre import setup
 
 _logger = logging.getLogger("byre.commands.config")
 _debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
@@ -36,29 +37,25 @@ class GlobalConfig(click.ParamType):
         self.config: typing.Optional[dict[str, typing.Any]] = None
 
     def convert(self, value: str, param, ctx):
-        if not value:
-            default_path = pathlib.Path.home().joinpath(".config", "byre", "byre.toml")
+        return self.load(value)
+
+    def load(self, path: str):
+        if not path:
+            default_path = setup.default_config_path()
             for f in ["byre.toml", str(default_path), "/etc/byre.toml",
                       "/etc/byre/byre.toml"]:
                 if os.path.exists(f):
                     _info("默认选定配置文件：%s", pathlib.Path(f))
-                    value = f
+                    path = f
                     break
             else:
                 _warning("找不到配置文件“byre.toml”，如果已有配置文件，请尝试使用 -c / --config 选项")
                 if click.prompt("是否创建配置文件？",
                                 type=click.Choice(["yes", "no"]), default="no", prompt_suffix=" ") == "yes":
-                    _info("默认配置文件位置：%s", default_path)
-                    os.makedirs(default_path.parent, exist_ok=True)
-                    with importlib.resources.files(__package__).joinpath("byre.example.toml").open() as tmpl:
-                        with default_path.open("w") as config:
-                            config.write(tmpl.read())
-                            config.flush()
-                    value = str(default_path)
-                    click.edit(filename=value)
+                    path = setup.setup()
                 else:
                     raise FileNotFoundError("找不到配置文件")
-        with open(value, "rb") as file:
+        with open(path, "rb") as file:
             self.config = tomli.load(file)
         return self
 

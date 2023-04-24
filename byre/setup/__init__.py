@@ -24,10 +24,12 @@ import sys
 import typing
 from urllib.parse import urlparse
 
+import appdirs
 import click
 import requests
 
 from byre.bt import BtClient
+from byre.setup.byre_config import interactive_configure
 
 _QBITTORRENT_SIZE = "qbittorrent.size"
 
@@ -41,6 +43,7 @@ def _get_download_url(arch: str, version: str = "4.5.2", libtorrent: str = "1.2.
 
 
 def _get_arch() -> str:
+    # noinspection SpellCheckingInspection
     mapping = {
         "aarch64": "aarch64",
         "armv7l": "armv7",
@@ -75,8 +78,8 @@ def download(output: pathlib.Path):
         size_output.write(content_length)
         size_output.flush()
     with click.progressbar(
-        length=int(content_length),
-        show_eta=True,
+            length=int(content_length),
+            show_eta=True,
     ) as bar:
         with open(output, "wb") as out:
             for chunk in response.iter_content(4096):
@@ -118,7 +121,8 @@ def _init_qbittorrent_config(path: pathlib.Path, port: int):
         config_out.write(config)
 
 
-def _init_systemd_unit(home: pathlib.Path, executable: pathlib.Path, profile_dir: pathlib.Path):
+def _init_systemd_unit(executable: pathlib.Path, profile_dir: pathlib.Path):
+    home = pathlib.Path.home()
     service_file = home.joinpath(".config", "systemd", "user", "qbittorrent.service")
     with importlib.resources.files(__package__).joinpath("qbittorrent.service.tmpl").open() as f:
         template = f.read()
@@ -132,18 +136,18 @@ def _init_systemd_unit(home: pathlib.Path, executable: pathlib.Path, profile_dir
     os.system("systemctl --user daemon-reload")
     os.system("systemctl --user enable qbittorrent.service")
     os.system("systemctl --user start qbittorrent.service")
+    # noinspection SpellCheckingInspection
     _warning(f"""
     请使用以下命令来确保 qBittorrent 开机运行：
         sudo loginctl enable-linger {os.getlogin()}
     """)
 
 
-def init_qbittorrent(executable: pathlib.Path, home: pathlib.Path, webui_port: int):
+def init_qbittorrent(executable: pathlib.Path, config_dir: pathlib.Path, webui_port: int):
     executable.chmod(0o755)
-    profile_dir = home.joinpath(".config", "byre")
-    os.makedirs(profile_dir, exist_ok=True)
-    _init_qbittorrent_config(profile_dir.joinpath("qBittorrent", "config", "qBittorrent.conf"), webui_port)
-    _init_systemd_unit(home, executable, profile_dir)
+    os.makedirs(config_dir, exist_ok=True)
+    _init_qbittorrent_config(config_dir.joinpath("qBittorrent", "config", "qBittorrent.conf"), webui_port)
+    _init_systemd_unit(executable, config_dir)
 
 
 def _parse_url(url: str):
@@ -158,14 +162,39 @@ def _parse_url(url: str):
     return parsed.username, parsed.password, port
 
 
-def setup(url: str, home: typing.Optional[pathlib.Path] = None):
-    _check_platform()
-    if home is None:
-        home = pathlib.Path.home()
-    data_dir = home.joinpath(".local", "lib", "byre")
-    executable = data_dir.joinpath("qbittorrent")
-    download(executable)
-    user, password, port = _parse_url(url)
-    init_qbittorrent(executable, home, port)
-    client = BtClient(f"http://admin:adminadmin@localhost:{port}", "/tmp")
-    client.init_webui(user, password)
+def default_config_path():
+    return pathlib.Path(appdirs.user_config_dir("byre")).joinpath("byre.toml").absolute()
+
+
+def setup(config_path: typing.Optional[pathlib.Path] = None):
+    cache_dir = pathlib.Path(appdirs.user_cache_dir("byre"))
+    config_dir = pathlib.Path(appdirs.user_config_dir("byre"))
+    data_dir = pathlib.Path(appdirs.user_data_dir("byre"))
+    os.makedirs(cache_dir, exist_ok=True)
+    os.makedirs(config_dir, exist_ok=True)
+    os.makedirs(data_dir, exist_ok=True)
+
+    if config_path is None:
+        config_path = default_config_path()
+    config_path = config_path.absolute()
+    config, wants_download = interactive_configure(cache_dir, config_path)
+
+    if wants_download:
+        _check_platform()
+        executable = data_dir.joinpath("qbittorrent")
+        download(executable)
+        user, password, port = _parse_url(config.require(str, "qbittorrent", "url"))
+        init_qbittorrent(executable, config_dir, port)
+        client = BtClient(f"http://admin:adminadmin@localhost:{port}")
+        client.init_webui(user, password)
+
+    click.echo(
+        f"""
+        配置文件创建完成，使用以下命令进行使用：
+            byre -c {config_path} --help
+            byre -c {config_path} byr user
+            byre -c {config_path} do main --dry-run
+        """
+    )
+
+    return config_path
