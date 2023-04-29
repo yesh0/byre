@@ -18,7 +18,6 @@ import logging
 import math
 import os
 import re
-import time
 import typing
 
 import bencoder
@@ -50,7 +49,7 @@ class MainCommand(ConfigurableGroup):
         self.byr = byr
         self.sites = dict((site.api_cls.site(), site) for site in sites)
         self.config: typing.Optional[GlobalConfig] = None
-        self.planners: list[planning.Planner] = []
+        self.planner: typing.Optional[planning.Planner] = None
         self.scorer: typing.Optional[scoring.Scorer] = None
         self.store: typing.Optional[storage.TorrentStore] = None
 
@@ -61,14 +60,16 @@ class MainCommand(ConfigurableGroup):
             cost_recovery_days=config.optional(float, 7., "scoring", "cost_recovery_days"),
             removal_exemption_days=config.optional(float, 15., "scoring", "removal_exemption_days"),
         )
+        planner_configs = []
         for disk in config.require(dict, "planning").keys():
             max_total_size = utils.convert_iec_size(config.optional(str, "0", "planning", disk, "max_total_size"))
-            self.planners.append(planning.Planner(
+            planner_configs.append(planning.PlannerConfig(
                 max_total_size=max_total_size,
                 max_download_size=utils.convert_iec_size(
                     config.optional(str, f"{max_total_size / 50} B", "planning", disk, "max_download_size")),
                 download_dir=os.path.realpath(config.require(str, "planning", disk, "download_dir")),
             ))
+        self.planner = planning.Planner(planner_configs)
         self.store = storage.TorrentStore(config.require(str, "qbittorrent", "cache_database"))
         self.config = config
         self.bt.configure(config)
@@ -80,9 +81,7 @@ class MainCommand(ConfigurableGroup):
     @click.option("-f", "--free-only", is_flag=True, help="只会下载免费促销的种子")
     def main(self, dry_run: bool, print_scores: bool, free_only: bool):
         """自动选择北邮人种子并在本地开始下载。"""
-        for planner in self.planners:
-            _info("尝试下载至 %s", planner.download_dir)
-            self.download(planner, None, dry_run, print_scores, free_only)
+        self.download(None, dry_run, print_scores, free_only)
 
     @click.command
     @click.option("-d", "--dry-run", is_flag=True, help="获取重命名列表，但不重命名")
@@ -126,11 +125,12 @@ class MainCommand(ConfigurableGroup):
                    f"剩余下载量 {S(amount_left)}")
         click.echo(f"上传速度 {S(up_speed)}/s，下载速度 {S(dl_speed)}/s")
         click.echo(f"当前种子总上传量 {S(uploaded)}，最近一次重启后上传量 {S(uploaded_session)}")
-        for planner in self.planners:
-            total, duplicates = planner.merge_torrent_info(local, self.store)
-            click.echo(f"下载目录：{planner.download_dir}")
-            click.echo(f"    当前本地种子已用空间 {S(total)}，使用空间上限为 {S(planner.max_total_size)}")
-            remaining = planner.get_disk_remaining()
+        total, _, _ = self.planner.merge_torrent_info([(t, 0) for t in local], self.store)
+        for config in self.planner.configs:
+            click.echo(f"下载目录：{config.download_dir}")
+            click.echo(f"    当前本地种子已用空间 {S(total.get(config.download_dir, 0.))}，"
+                       f"使用空间上限为 {S(config.max_total_size)}")
+            remaining = config.get_disk_remaining()
             click.echo(f"    当前下载目录分区剩余空间 {S(remaining)}")
 
     @click.command(name="download")
@@ -158,11 +158,7 @@ class MainCommand(ConfigurableGroup):
         else:
             self.sites[at].configure(self.config)
             api = self.sites[at].api
-        for planner in self.planners:
-            _info("正在尝试下载至 %s", planner.download_dir)
-            if self.download(planner, api.torrent(seed_id), dry_run, paused=paused, exists=exists) != 0:
-                break
-        else:
+        if self.download(api.torrent(seed_id), dry_run, paused=paused, exists=exists) == 0:
             _warning("没有目录能够清出足够的空间进行下载")
 
     @click.command
@@ -226,39 +222,45 @@ class MainCommand(ConfigurableGroup):
             for local, torrent, content in matches:
                 self.bt.api.add_torrent(content, torrent, "", exists=local)
 
-    def download(self, planner: planning.Planner, target: typing.Optional[TorrentInfo] = None, dry_run=False,
+    def download(self, target: typing.Optional[TorrentInfo] = None, dry_run=False,
                  print_scores=False, free_only=False, paused=False, exists: typing.Union[LocalTorrent, bool] = False):
         remote = (
                 self.byr.api.list_user_torrents(kind=UserTorrentKind.SEEDING) +
                 self.byr.api.list_user_torrents(kind=UserTorrentKind.LEECHING)
         )
-        local, scored_local, local_dicts = self._gather_local_info(remote)
+        scored_local, local_dicts = self._gather_local_info(remote)
         if target is None:
             candidates = self._fetch_candidates(scored_local, local_dicts["byr"], remote, free_only=free_only)
         else:
             _info("准备下载指定种子，将种子的价值设为无穷，去除单次下载量上限")
             candidates = [(target, math.inf)]
-            if exists:
-                planner.max_total_size = 1e12
-            planner.max_download_size = planner.max_total_size
+            for config in self.planner.configs:
+                config.max_download_size = 1e15
         if print_scores:
             pretty.pretty_scored_torrents(candidates[:10])
 
         _info("正在计算最终种子选择")
-        removable, downloadable, duplicates = planner.plan(
-            local, scored_local, candidates, self.store, exists=bool(exists),
+        removable, downloadable, duplicates = self.planner.plan(
+            scored_local, candidates, self.store, exists=bool(exists),
         )
-        estimates = planner.estimate(local, removable, downloadable, self.store, exists=bool(exists))
-        summary = "\n".join((
-            "更改总结：",
-            f"最大允许空间占用 {S(planner.max_total_size)}，"
-            f"本次最大下载量为 {S(planner.max_download_size)}",
-            f"目前总空间占用 {S(estimates.before)}，"
-            f"最后预期总占用 {S(estimates.after)}",
-            f"将会删除 {len(removable)} 项内容（共计 {S(estimates.to_be_deleted)}），"
-            f"将会下载 {len(downloadable)} 项内容（共计 {S(estimates.to_be_downloaded)}）",
-            pretty.pretty_changes(removable, downloadable, duplicates)
-        ))
+        estimates, groups = self.planner.estimate(scored_local, removable, downloadable, self.store,
+                                                  exists=bool(exists))
+        summary = ""
+        for config in self.planner.configs:
+            if config.download_dir not in estimates:
+                continue
+            estimate = estimates[config.download_dir]
+            downloaded, deleted = groups[config.download_dir]
+            summary += "\n".join((
+                f"更改总结：{config.download_dir}",
+                f"    最大允许空间占用 {S(config.max_total_size)}，"
+                f"    本次最大下载量为 {S(config.max_download_size)}",
+                f"    目前总空间占用 {S(estimate.before)}，"
+                f"    最后预期总占用 {S(estimate.after)}",
+                f"    将会删除 {len(removable)} 项内容（共计 {S(estimate.to_be_deleted)}），"
+                f"    将会下载 {len(downloadable)} 项内容（共计 {S(estimate.to_be_downloaded)}）",
+                pretty.pretty_changes(deleted, downloaded, duplicates) or "",
+            ))
         if print_scores:
             click.echo_via_pager(summary)
         else:
@@ -266,23 +268,25 @@ class MainCommand(ConfigurableGroup):
         if dry_run:
             _info("以上计划未被实际运行；若想开始下载，请去除命令行 -d / --dry-run 选项")
         else:
-            for t in removable:
+            for t, _ in removable:
                 _info("正在删除：%s", t.torrent.name)
                 self.bt.api.remove_torrent(t, duplicates[t.torrent.hash])
-            for t in downloadable:
+            configured_sites = {}
+            for t, directory in downloadable:
                 _info("正在添加下载：[%s-%d]%s", t.site, t.seed_id, t.title)
                 if t.site == "byr":
                     api = self.byr.api
                 else:
-                    self.sites[t.site].configure(self.config)
+                    if t.site not in configured_sites:
+                        self.sites[t.site].configure(self.config)
+                        configured_sites[t.site] = True
                     api = self.sites[t.site].api
-                time.sleep(0.5)
                 torrent = api.download_torrent(t.seed_id)
                 if isinstance(exists, LocalTorrent):
                     if not self._torrent_files_exact_match(exists, torrent, t):
                         _warning("将要下载的种子与本地文件不符，无法合并种子")
                         continue
-                self.bt.api.add_torrent(torrent, t, planner.download_dir, paused=paused, exists=exists)
+                self.bt.api.add_torrent(torrent, t, directory, paused=paused, exists=exists)
         return len(downloadable)
 
     @staticmethod
@@ -345,7 +349,7 @@ class MainCommand(ConfigurableGroup):
                 local_dicts[site] = {}
             local_dicts[site][t[0].seed_id] = i
 
-        return local, scored_local, local_dicts
+        return scored_local, local_dicts
 
     def _fetch_candidates(self, scored_local: list[tuple[LocalTorrent, float]], local_dict: dict[int, int],
                           byr_remote: list[TorrentInfo], free_only: bool):
