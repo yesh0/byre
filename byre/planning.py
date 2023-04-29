@@ -17,12 +17,13 @@
 
 import logging
 import os
+import typing
 from dataclasses import dataclass
 
 import psutil
 
 from byre.clients.data import LocalTorrent, TorrentInfo
-from byre.storage import TorrentStore
+from byre.storage import TorrentStore, TorrentDO
 
 _logger = logging.getLogger("byre.planning")
 _debug, _warning = _logger.debug, _logger.warning
@@ -75,9 +76,12 @@ class PlannerConfig:
         parent = os.path.realpath(torrent.torrent.save_path)
         while os.path.dirname(parent) != parent:
             parent = os.path.dirname(parent)
-            if os.path.samefile(parent, self.download_dir):
-                # 暂时不支持嵌套树状结构（如 disk1 在 /mnt/disk1，disk2 在 /mnt/disk1/disk2）。
-                return True
+            try:
+                if os.path.samefile(parent, self.download_dir):
+                    # 暂时不支持嵌套树状结构（如 disk1 在 /mnt/disk1，disk2 在 /mnt/disk1/disk2）。
+                    return True
+            except FileNotFoundError:
+                pass
         else:
             return False
 
@@ -85,11 +89,13 @@ class PlannerConfig:
                    removable_hashes: dict[str, float], duplicates: dict[str, list[LocalTorrent]]):
         downloaded = 0.
         i = 0
+        # 以北邮人种子为主。
+        scored_local = [t for t in scored_local if t[0].site == "byr"]
 
         def try_download(candidate: TorrentInfo,
                          score: float,
                          exists: bool
-                         ) -> None | tuple[float, list[tuple[LocalTorrent, float]]]:
+                         ) -> typing.Optional[tuple[float, list[tuple[LocalTorrent, float]]]]:
             nonlocal downloaded, i, remaining, scored_local, self
             if downloaded + candidate.file_size > self.max_download_size:
                 return None
@@ -206,6 +212,8 @@ class Planner:
         local = {}
         path_torrents = {}
         cached = cache.save_extra_torrents([t for t, _ in local_torrents])
+        torrent: LocalTorrent
+        info: TorrentDO
         for (torrent, score), info in zip(local_torrents, cached):
             for config in self.configs:
                 if config.is_under_current_dir(torrent):
@@ -217,21 +225,19 @@ class Planner:
                             total[config.download_dir] += torrent.torrent.size
                         else:
                             total[config.download_dir] = torrent.torrent.size
-                    # 以北邮人种子为主。
-                    if torrent.site == "byr":
-                        if config.download_dir not in local:
-                            local[config.download_dir] = []
-                        local[config.download_dir].append((torrent, score))
+                    if config.download_dir not in local:
+                        local[config.download_dir] = []
+                    local[config.download_dir].append((torrent, score))
                     break
             else:
-                _warning("跳过不属于任何下载目录的种子：%s", torrent.torrent.size)
-                continue
+                _warning("跳过不属于任何下载目录的种子：%s", torrent.torrent.name)
 
         duplicates: dict[str, list[LocalTorrent]] = {}
         for _, same_torrents in path_torrents.items():
             if len(same_torrents) > 1:
                 hashes = dict((t.torrent.hash, t) for t in same_torrents)
-                _debug("共享相同文件的种子：\n%s", "\n".join(t.torrent.name for t in same_torrents))
+                _debug("共享相同文件的种子：\n%s", "\n".join(
+                    f"{t.torrent.hash} {t.torrent.name}" for t in same_torrents))
                 for torrent in same_torrents:
                     duplicates[torrent.torrent.hash] = [hashes[h] for h in (hashes.keys() - {torrent.torrent.hash})]
             else:
