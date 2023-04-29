@@ -24,6 +24,7 @@ import psutil
 
 from byre.clients.data import LocalTorrent, TorrentInfo
 from byre.storage import TorrentStore, TorrentDO
+from byre.utils import S
 
 _logger = logging.getLogger("byre.planning")
 _debug, _warning = _logger.debug, _logger.warning
@@ -49,9 +50,6 @@ class PlannerConfig:
 
     download_dir: str
     """下载目录，用于计算剩余空间上限。"""
-
-    remaining: float = 0.
-    """剩余空间，用于计算过程中的临时储存。"""
 
     def get_disk_remaining(self):
         """下载目录剩余空间。"""
@@ -102,11 +100,13 @@ class PlannerConfig:
             if score == 0.:
                 return None
             # 能下载就直接下载。
-            if candidate.file_size < self.remaining or exists:
+            if candidate.file_size < remaining or exists:
                 if not exists:
-                    self.remaining -= candidate.file_size
+                    remaining -= candidate.file_size
                     downloaded += candidate.file_size
+                    return candidate.file_size, []
                 return 0, []
+            _debug("剩余空间 %s，文件大小 %s，准备尝试移除现有冷门种子", S(remaining), S(candidate.file_size))
             # 否则尝试移除分数相对低的本地种子。
             removable_size = 0
             removable = []
