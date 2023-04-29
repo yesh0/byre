@@ -245,26 +245,26 @@ class MainCommand(ConfigurableGroup):
         )
         estimates, groups = self.planner.estimate(scored_local, removable, downloadable, self.store,
                                                   exists=bool(exists))
-        summary = ""
+        summary = []
         for config in self.planner.configs:
             if config.download_dir not in estimates:
                 continue
             estimate = estimates[config.download_dir]
             downloaded, deleted = groups[config.download_dir]
-            summary += "\n".join((
-                f"更改总结：{config.download_dir}",
+            summary.append("\n".join((
+                f"更改总结：{click.style(config.download_dir, bold=True)}",
                 f"    最大允许空间占用 {S(config.max_total_size)}，"
                 f"    本次最大下载量为 {S(config.max_download_size)}",
                 f"    目前总空间占用 {S(estimate.before)}，"
                 f"    最后预期总占用 {S(estimate.after)}",
-                f"    将会删除 {len(removable)} 项内容（共计 {S(estimate.to_be_deleted)}），"
-                f"    将会下载 {len(downloadable)} 项内容（共计 {S(estimate.to_be_downloaded)}）",
+                f"    将会删除 {len(deleted)} 项内容（共计 {S(estimate.to_be_deleted)}），"
+                f"    将会下载 {len(downloaded)} 项内容（共计 {S(estimate.to_be_downloaded)}）",
                 pretty.pretty_changes(deleted, downloaded, duplicates) or "",
-            ))
+            )))
         if print_scores:
-            click.echo_via_pager(summary)
+            click.echo_via_pager("\n\n".join(summary))
         else:
-            _info(summary)
+            _info("\n".join(summary))
         if dry_run:
             _info("以上计划未被实际运行；若想开始下载，请去除命令行 -d / --dry-run 选项")
         else:
