@@ -134,17 +134,17 @@ class MainCommand(ConfigurableGroup):
             click.echo(f"    当前下载目录分区剩余空间 {S(remaining)}")
 
     @click.command(name="download")
-    @click.argument("seed", type=click.STRING, metavar="<北邮人链接或是种子 ID>")
+    @click.argument("seed", type=click.STRING, metavar="<北邮人链接或是种子 ID>", nargs=-1)
     @click.option("-a", "--at", default="byr", type=click.Choice(SITES.keys()), help="种子所在 PT 站点")
     @click.option("-d", "--dry-run", is_flag=True, help="计算种子调整结果，但不添加种子到本地")
     @click.option("-p", "--paused", is_flag=True, help="使种子在添加后被暂停")
     @click.option("-e", "--exists", is_flag=True, help="告诉 qBittorrent 文件已经下载完毕并让其跳过哈希检查")
     @click.option("-s", "--same", default="", type=click.STRING,
                   help="告诉 qBittorrent 该种子与这个哈希对应的北邮人种子的文件一模一样")
-    def download_one(self, at: str, seed: str, dry_run: bool, paused: bool, exists: typing.Union[bool, LocalTorrent],
-                     same: str):
+    def download_one(self, at: str, seed: list[str], dry_run: bool, paused: bool,
+                     exists: typing.Union[bool, LocalTorrent], same: str):
         """下载特定种子，可能会删除其它种子腾出空间来满足下载需求。"""
-        seed_id = pretty.parse_url_id(seed)
+        seed_ids = [pretty.parse_url_id(s) for s in seed]
         if same:
             # 原本应该 BtClient 再封装一下的，但是懒。
             local = self.bt.api.client.torrents_info(torrent_hashes=[same])
@@ -158,7 +158,7 @@ class MainCommand(ConfigurableGroup):
         else:
             self.sites[at].configure(self.config)
             api = self.sites[at].api
-        if self.download(api.torrent(seed_id), dry_run, paused=paused, exists=exists) == 0:
+        if self.download([api.torrent(seed_id) for seed_id in seed_ids], dry_run, paused=paused, exists=exists) == 0:
             _warning("没有目录能够清出足够的空间进行下载")
 
     @click.command
@@ -222,18 +222,18 @@ class MainCommand(ConfigurableGroup):
             for local, torrent, content in matches:
                 self.bt.api.add_torrent(content, torrent, "", exists=local)
 
-    def download(self, target: typing.Optional[TorrentInfo] = None, dry_run=False,
+    def download(self, targets: typing.Optional[list[TorrentInfo]] = None, dry_run=False,
                  print_scores=False, free_only=False, paused=False, exists: typing.Union[LocalTorrent, bool] = False):
         remote = (
                 self.byr.api.list_user_torrents(kind=UserTorrentKind.SEEDING) +
                 self.byr.api.list_user_torrents(kind=UserTorrentKind.LEECHING)
         )
         scored_local, local_dicts = self._gather_local_info(remote)
-        if target is None:
+        if targets is None:
             candidates = self._fetch_candidates(scored_local, local_dicts["byr"], remote, free_only=free_only)
         else:
             _info("准备下载指定种子，将种子的价值设为无穷，去除单次下载量上限")
-            candidates = [(target, math.inf)]
+            candidates = [(target, math.inf) for target in targets]
             for config in self.planner.configs:
                 config.max_download_size = 1e15
         if print_scores:
