@@ -63,6 +63,7 @@ max_total_size = "{max_total_size}"
 max_download_size = "{max_download_size}"
 
 # (*) 下载目录
+# 是实际的下载目录，以 GB, GiB, TB, TiB 计算大小的那种，不是 .torrent 文件的下载。
 download_dir = "{download_dir}"
 
 # # 多个硬盘 / 分区：每个分区对应一个 [planning.xxxx] 的段落，保证各自有对应的 download_dir 即可。

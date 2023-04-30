@@ -14,6 +14,7 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import importlib.resources
+import logging
 import os.path
 import pathlib
 import typing
@@ -25,6 +26,10 @@ from byre.clients import SITES, CLIENTS
 from byre.clients.api import NexusApi
 from byre.clients.client import NexusClient
 from byre.commands.config import GlobalConfig
+
+
+_logger = logging.getLogger("byre.setup")
+_info = _logger.info
 
 
 def _prompt_nexus_credentials(client: typing.Type[NexusClient], api: typing.Type[NexusApi], directory: pathlib.Path,
@@ -66,6 +71,9 @@ def _prompt_qbittorrent():
 
 def _prompt_partitions():
     partitions = []
+    _info("下面的下载路径指的是实际文件的下载路径（如 MKV, MP4 等）。"
+          "脚本不直接保存种子 .torrent 文件。"
+          "若需要获取 .torrent 文件，可以进入 qBittorrent Web UI 右键下载。")
     while True:
         download_dir = click.prompt(f"请输入第 {len(partitions) + 1} 个下载位置的路径（直接回车以结束）",
                                     default="", type=str)
