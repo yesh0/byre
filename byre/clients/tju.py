@@ -99,7 +99,7 @@ class TjuPtApi(NexusApi):
     @override
     def _extract_info_bar_ranking(cls, page: bs4.Tag) -> int:
         tag = [tag for tag in page.select("#info_block span.color_active") if "上传排名" in tag.text][0]
-        return int(tag.find_next_sibling(name="a").text.strip())
+        return utils.int_or(tag.find_next_sibling(name="a").text.strip())
 
     @classmethod
     @override

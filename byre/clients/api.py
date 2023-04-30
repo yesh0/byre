@@ -113,7 +113,7 @@ class NexusApi(metaclass=ABCMeta):
         """
         ranking_tag = next(tag for tag in page.select("#info_block .color_bonus") if "上传排行" in tag.text)
         ranking = ranking_tag.next_sibling.text.strip()
-        return int(ranking)
+        return utils.int_or(ranking)
 
     @classmethod
     def _extract_info_bar(cls, user: NexusUser, page: bs4.Tag) -> None:
@@ -122,12 +122,12 @@ class NexusApi(metaclass=ABCMeta):
         up_arrow = page.select_one("#info_block img.arrowup")
         seeding = str("0" if up_arrow is None else up_arrow.next).strip()
         if seeding.isdigit():
-            user.seeding = int(seeding)
+            user.seeding = utils.int_or(seeding)
 
         down_arrow = page.select_one("#info_block img.arrowdown")
         downloading = str("0" if down_arrow is None else down_arrow.next).strip()
         if downloading.isdigit():
-            user.downloading = int(downloading)
+            user.downloading = utils.int_or(downloading)
 
         connectable = page.select_one("#info_block font[color=green]")
         user.connectable = connectable is not None and "是" in connectable.text
@@ -165,12 +165,14 @@ class NexusApi(metaclass=ABCMeta):
 
         if _MANA in info:
             # 北洋园这里在数字后面跟了一个链接，总之能跑就行。
-            user.mana = float("".join(c for c in info[_MANA].get_text(strip=True) if c == "." or c.isdigit()))
+            user.mana = utils.float_or(
+                "".join(c for c in info[_MANA].get_text(strip=True) if c == "." or c.isdigit())
+            )
 
         if _INVITATIONS in info:
             invitations = info[_INVITATIONS].get_text(strip=True)
             if "没有邀请资格" not in invitations:
-                user.invitations = int(invitations)
+                user.invitations = utils.int_or(invitations)
 
         if _TRANSFER in info:
             # 北邮人应该是原来的 NexusPHP 吧。
@@ -181,7 +183,7 @@ class NexusApi(metaclass=ABCMeta):
                     continue
                 field, value = [s.strip() for s in text.split(":", 1)]
                 if field == "分享率":
-                    user.ratio = float(value)
+                    user.ratio = utils.float_or(value)
                 elif field == "上传量":
                     user.uploaded = utils.convert_iec_size(value)
                 elif field == "下载量":

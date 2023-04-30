@@ -55,7 +55,7 @@ def convert_iec_size(size: str) -> float:
 def int_or(s: str, default=0) -> int:
     """安全地将字符串解析成 int 值。"""
     try:
-        return int(s)
+        return int(s.replace(',', '').strip())
     except ValueError:
         return default
 
@@ -63,7 +63,7 @@ def int_or(s: str, default=0) -> int:
 def float_or(s: str, default=0.) -> float:
     """安全地将字符串解析成 float 值。"""
     try:
-        return float(s)
+        return float(s.replace(',', '').strip())
     except ValueError:
         return default
 
