@@ -21,11 +21,13 @@ import os.path
 import pathlib
 import platform
 import sys
+import time
 import typing
 from urllib.parse import urlparse
 
 import appdirs
 import click
+import qbittorrentapi
 import requests
 
 from byre.bt import BtClient
@@ -135,7 +137,7 @@ def _init_systemd_unit(executable: pathlib.Path, profile_dir: pathlib.Path):
         service.write(unit)
     os.system("systemctl --user daemon-reload")
     os.system("systemctl --user enable qbittorrent.service")
-    os.system("systemctl --user start qbittorrent.service")
+    os.system("systemctl --user restart qbittorrent.service")
     # noinspection SpellCheckingInspection
     _warning(f"""
     请使用以下命令来确保 qBittorrent 开机运行：
@@ -185,8 +187,17 @@ def setup(config_path: typing.Optional[pathlib.Path] = None):
         download(executable)
         user, password, port = _parse_url(config.require(str, "qbittorrent", "url"))
         init_qbittorrent(executable, config_dir, port)
-        client = BtClient(f"http://admin:adminadmin@localhost:{port}")
-        client.init_webui(user, password)
+        for _ in range(10):
+            time.sleep(1)
+            try:
+                client = BtClient(f"http://admin:adminadmin@localhost:{port}")
+                client.init_webui(user, password)
+                break
+            except qbittorrentapi.APIConnectionError:
+                _warning("看起来 qBittorrent Web UI 还没启动起来，将在一秒后重试")
+        else:
+            _warning("qBittorrent 整整 10 秒都没启动起来，可能需要手动配置\n"
+                     "qBittorrent 用户名默认 admin，密码默认为 adminadmin，请手动设置为新用户/密码")
 
     click.echo(
         f"""

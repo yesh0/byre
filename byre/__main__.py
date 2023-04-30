@@ -48,8 +48,6 @@ def main(ctx: click.Context, config: GlobalConfig, verbose: bool):
     ctx.ensure_object(dict)
     ctx.obj["config"] = config
 
-    utils.colorize_logger(None)
-    logging.basicConfig(stream=sys.stderr)
     if verbose:
         logging.getLogger("byre").setLevel(logging.DEBUG)
     else:
@@ -73,6 +71,9 @@ def entry_point():
     os.environ["LANGUAGE"] = "zh"
     # 想用 importlib 但似乎 gettext 不支持，希望没问题。
     gettext.bindtextdomain("messages", localedir=os.path.join(os.path.dirname(os.path.realpath(__file__)), "locales"))
+    utils.colorize_logger(None)
+    logging.basicConfig(stream=sys.stderr)
+    logging.getLogger("byre").setLevel(logging.INFO)
     main(obj={})
 
 
