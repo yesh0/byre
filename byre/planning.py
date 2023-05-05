@@ -17,7 +17,6 @@
 
 import logging
 import os
-import pprint
 import typing
 from dataclasses import dataclass
 
@@ -51,6 +50,9 @@ class PlannerConfig:
 
     download_dir: str
     """下载目录，用于计算剩余空间上限。"""
+
+    site: str = "byr"
+    """下载网站。"""
 
     def get_disk_remaining(self):
         """下载目录剩余空间。"""
@@ -89,7 +91,7 @@ class PlannerConfig:
         downloaded = 0.
         i = 0
         # 以北邮人种子为主。
-        scored_local = [t for t in scored_local if t[0].site == "byr"]
+        scored_local = [t for t in scored_local if t[0].site == self.site]
 
         def try_download(candidate: TorrentInfo,
                          score: float,

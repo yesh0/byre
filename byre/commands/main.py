@@ -76,12 +76,13 @@ class MainCommand(ConfigurableGroup):
         self.byr.configure(config)
 
     @click.command
+    @click.option("-a", "--at", default="byr", type=click.Choice(SITES.keys()), help="种子所在 PT 站点")
     @click.option("-d", "--dry-run", is_flag=True, help="计算种子选择结果，但不添加种子到本地")
     @click.option("-p", "--print", "print_scores", is_flag=True, help="显示新种子评分以及最终选择结果")
     @click.option("-f", "--free-only", is_flag=True, help="只会下载免费促销的种子")
-    def main(self, dry_run: bool, print_scores: bool, free_only: bool):
+    def main(self, at: str, dry_run: bool, print_scores: bool, free_only: bool):
         """自动选择北邮人种子并在本地开始下载。"""
-        self.download(None, dry_run, print_scores, free_only)
+        self.download(None, dry_run, print_scores, free_only, site=at)
 
     @click.command
     @click.option("-d", "--dry-run", is_flag=True, help="获取重命名列表，但不重命名")
@@ -223,14 +224,22 @@ class MainCommand(ConfigurableGroup):
                 self.bt.api.add_torrent(content, torrent, "", exists=local)
 
     def download(self, targets: typing.Optional[list[TorrentInfo]] = None, dry_run=False,
-                 print_scores=False, free_only=False, paused=False, exists: typing.Union[LocalTorrent, bool] = False):
+                 print_scores=False, free_only=False, paused=False, exists: typing.Union[LocalTorrent, bool] = False,
+                 site="byr"):
+        if site == "byr":
+            api = self.byr.api
+        else:
+            command = self.sites[site]
+            command.configure(self.config)
+            api = command.api
         remote = (
-                self.byr.api.list_user_torrents(kind=UserTorrentKind.SEEDING) +
-                self.byr.api.list_user_torrents(kind=UserTorrentKind.LEECHING)
+                api.list_user_torrents(kind=UserTorrentKind.SEEDING) +
+                api.list_user_torrents(kind=UserTorrentKind.LEECHING)
         )
         scored_local, local_dicts = self._gather_local_info(remote)
         if targets is None:
-            candidates = self._fetch_candidates(scored_local, local_dicts["byr"], remote, free_only=free_only)
+            candidates = self._fetch_candidates(scored_local, local_dicts.get(site, {}),
+                                                remote, free_only=free_only)
         else:
             _info("准备下载指定种子，将种子的价值设为无穷，去除单次下载量上限")
             candidates = [(target, math.inf) for target in targets]
@@ -334,6 +343,11 @@ class MainCommand(ConfigurableGroup):
         return len(matches) != 0
 
     def _gather_local_info(self, remote: list[TorrentInfo]):
+        """
+        :param remote: 用户正在下载/做种的种子。
+        :return: 第一项是排序好的评分了的本地种子；
+        第二项是每个 NexusPHP 站点对应的种子 ID 到前面第一项的序号的映射。
+        """
         _info("正在合并远端种子列表和本地种子列表信息")
         local = self.bt.api.list_torrents(remote)
         _info("正在对本地种子评分")
