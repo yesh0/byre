@@ -239,7 +239,7 @@ class MainCommand(ConfigurableGroup):
         scored_local, local_dicts = self._gather_local_info(remote)
         if targets is None:
             candidates = self._fetch_candidates(scored_local, local_dicts.get(site, {}),
-                                                remote, free_only=free_only)
+                                                remote, free_only=free_only, site=site)
         else:
             _info("准备下载指定种子，将种子的价值设为无穷，去除单次下载量上限")
             candidates = [(target, math.inf) for target in targets]
@@ -250,7 +250,7 @@ class MainCommand(ConfigurableGroup):
 
         _info("正在计算最终种子选择")
         removable, downloadable, duplicates = self.planner.plan(
-            scored_local, candidates, self.store, exists=bool(exists),
+            scored_local, candidates, self.store, exists=bool(exists), site=site,
         )
         estimates, groups = self.planner.estimate(scored_local, removable, downloadable, self.store,
                                                   exists=bool(exists))
@@ -366,16 +366,22 @@ class MainCommand(ConfigurableGroup):
         return scored_local, local_dicts
 
     def _fetch_candidates(self, scored_local: list[tuple[LocalTorrent, float]], local_dict: dict[int, int],
-                          byr_remote: list[TorrentInfo], free_only: bool):
+                          remote: list[TorrentInfo], free_only: bool, site: str):
         _info("正在抓取新种子")
+        if site == "byr":
+            api = self.byr.api
+        else:
+            api = self.sites[site].api
         lists = [
-            self.byr.api.list_torrents(page=0),
-            self.byr.api.list_torrents(page=0, sorted_by=NexusSortableField.LEECHER_COUNT),
-            self.byr.api.list_torrents(page=0, promotion=TorrentPromotion.FREE),
+            api.list_torrents(page=0),
+            api.list_torrents(page=0, sorted_by=NexusSortableField.LEECHER_COUNT),
+            api.list_torrents(page=0, promotion=TorrentPromotion.FREE),
         ]
-        # 我们只支持批量抓取北邮人的种子，这里的 byr_ids 是为了防止多客户端
+        # 我们只支持批量抓取北邮人的种子，这里的 downloading_ids 是为了防止多客户端
         # （例如 NAS 一个，笔记本一个）被禁止下载的情况。
-        byr_ids = set(t.seed_id for t in byr_remote)
+        downloading_ids = set(t.seed_id for t in remote)
+        # 用于去重。
+        added: set[int] = set()
         fetched = []
         _debug("正在将已下载的种子从新种子列表中除去")
         for torrent in self._merge_torrent_list(*lists):
@@ -383,10 +389,11 @@ class MainCommand(ConfigurableGroup):
                 i = local_dict[torrent.seed_id]
                 if i != -1:
                     scored_local[i][0].info = torrent
-            elif torrent.seed_id in byr_ids:
+            elif torrent.seed_id in downloading_ids:
                 continue
-            else:
+            elif torrent.seed_id not in added:
                 fetched.append(torrent)
+                added.add(torrent.seed_id)
 
         if free_only:
             _debug("正在筛选免费促销的种子")

@@ -51,9 +51,6 @@ class PlannerConfig:
     download_dir: str
     """下载目录，用于计算剩余空间上限。"""
 
-    site: str = "byr"
-    """下载网站。"""
-
     def get_disk_remaining(self):
         """下载目录剩余空间。"""
         remaining = psutil.disk_usage(self.download_dir).free
@@ -87,11 +84,10 @@ class PlannerConfig:
             return False
 
     def downloader(self, remaining: float, scored_local: list[tuple[LocalTorrent, float]],
-                   removable_hashes: dict[str, float], duplicates: dict[str, list[LocalTorrent]]):
+                   removable_hashes: dict[str, float], duplicates: dict[str, list[LocalTorrent]], site: str):
         downloaded = 0.
         i = 0
-        # 以北邮人种子为主。
-        scored_local = [t for t in scored_local if t[0].site == self.site]
+        scored_local = [t for t in scored_local if t[0].site == site]
 
         def try_download(candidate: TorrentInfo,
                          score: float,
@@ -147,6 +143,7 @@ class Planner:
              scored_local: list[tuple[LocalTorrent, float]],
              remote: list[tuple[TorrentInfo, float]],
              cache: TorrentStore,
+             site: str,
              exists=False,
              ) -> tuple[list[tuple[LocalTorrent, str]], list[tuple[TorrentInfo, str]], dict[str, list[LocalTorrent]]]:
         # duplicates 用于检查共用文件的种子。
@@ -165,6 +162,7 @@ class Planner:
                 local.get(config.download_dir, []),
                 removable_hashes,
                 duplicates,
+                site=site,
             )
 
         removable, downloadable = [], []
