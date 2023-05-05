@@ -17,6 +17,7 @@
 
 import logging
 import os
+import pprint
 import typing
 from dataclasses import dataclass
 
@@ -151,7 +152,7 @@ class Planner:
         # removable_hashes 用于检查共用文件的种子是否可以移除，以及它们共享分数。
         removable_hashes: dict[str, float] = {}
         for config in self.configs:
-            removable_hashes.update(dict((t.torrent.hash, score) for t, score in local[config.download_dir] or []))
+            removable_hashes.update(dict((t.torrent.hash, score) for t, score in local.get(config.download_dir, [])))
 
         planners = {}
         for config in self.configs:
@@ -208,8 +209,17 @@ class Planner:
 
     def merge_torrent_info(self, local_torrents: list[tuple[LocalTorrent, float]],
                            cache: TorrentStore):
-        total = {}
-        local = {}
+        """
+        进行统计，返回一大堆奇奇怪怪的东西。
+
+        :param local_torrents: 评分了的本地种子。
+        :param cache: 本地缓存。
+        :return: 长度为 3 的 tuple。第一个元素是各下载目录的占用空间
+        （如果有正在下载的种子按下载完毕的大小计算）；第二个是各下载目录
+        分别有的种子；第三个是共享相同文件的种子。
+        """
+        total: dict[str, float] = {}
+        local: dict[str, list[tuple[LocalTorrent, float]]] = {}
         path_torrents = {}
         cached = cache.save_extra_torrents([t for t, _ in local_torrents])
         torrent: LocalTorrent
