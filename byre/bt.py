@@ -15,6 +15,7 @@
 
 import logging
 import os.path
+import re
 import time
 import typing
 from urllib.parse import urlparse
@@ -152,8 +153,13 @@ class BtClient:
         return torrents
 
     @classmethod
-    def local_torrent_from(cls, torrent: qbittorrentapi.TorrentDictionary, site: str):
+    def local_torrent_from(cls, torrent: qbittorrentapi.TorrentDictionary, site: typing.Optional[str] = None):
         name: str = torrent["name"]
+        if site is None:
+            match = re.match("^\\[(\\w+)-\\d+]", name)
+            if match is None:
+                raise ValueError(f"种子命名不符合要求：{name}")
+            site = match.group(1)
         prefix = f"[{site}-"
         if name.startswith(prefix):
             seed_id = utils.int_or(name[len(prefix):name.index("]")])

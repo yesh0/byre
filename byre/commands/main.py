@@ -153,7 +153,7 @@ class MainCommand(ConfigurableGroup):
                 raise ValueError(f"不存在哈希为 {same} 的种子")
             if local[0].amount_left != 0:
                 raise RuntimeError(f"该 {same} 种子还在下载中，请下载完成后重试")
-            exists = self.bt.api.local_torrent_from(local[0], "byr")
+            exists = self.bt.api.local_torrent_from(local[0])
         if at == "byr":
             api = self.byr.api
         else:
