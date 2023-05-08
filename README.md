@@ -97,13 +97,22 @@ Usage: byre [OPTIONS] COMMAND [ARGS]...
 ### 自动刷流配置
 
 自动刷流需要一些外部的配置：
-- 在 Linux 下可以使用 `crontab` 来定时运行 `byre`。
+- 在 Linux 下可以使用 `crontab` 来定时运行 `byre**。
 - Windows 我不知道（欢迎提供思路）。
 - macOS 我更不知道（欢迎提供思路）。
 
-我个人定时运行的命令是 `byre do main --free-only && byre do hitchhike` 。
+我个人定时运行的命令是 `byre do main --free-only && byre do hitchhike** 。
 
-### FAQ
+### FAQ & Warnings
+
+0. 关于北洋园使用的 **警告** ：[北洋园禁止脚本](https://www.tjupt.org/forums.php?action=viewtopic&topicid=16580)，请不要使用相关功能。
+   现在北洋园使用的是 H&R 机制，基本上可以不用担心分享率，所以这里其实更推荐直接用 RSS 配合 qBittorrent 等来直接自动下载。
+   qBittorrent 里也可以对种子进行一定的限制，例如：
+   - 在[获取 RSS](https://www.tjupt.org/getrss.php) 时勾选 `[大小]` 则可以通过 qBittorrent 的正则进行大小的筛选：
+     - 在“Must Not Contain”里填入 `MiB` 可以排除小于 1 GiB 的种子，
+     - 填入 `TiB|GiB|(\[\d{4}\.\d{2} MiB)|(\[\d{2}\.\d{2} MiB)|(\[[1-2]\d{2}\.\d{2} MiB)` 则可以将种子大小限制在大约 1 GiB 以下，300 MiB 以上。
+   - 勾选 `[发布者]` 则可以通过在“Must Contain”里填入发布者名字来筛选相对可靠的资源。
+   个人认为这样已经足够刷流（以及刷升级所需的下载数量）了。（但你需要隔段时间去删删种子。）
 
 1. 北洋园站点无法下载？
 
