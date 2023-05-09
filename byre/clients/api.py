@@ -357,6 +357,15 @@ class NexusApi(metaclass=ABCMeta):
     def _extract_page_upload_time(cls, page: bs4.Tag) -> datetime.datetime:
         return datetime.datetime.fromisoformat(page.select_one("span[title]").attrs["title"])
 
+    @classmethod
+    def _rearrange_table_cells(cls, cells):
+        """
+        留点表格变化的空间。
+
+        例如北邮人给表格前面添了一列，后面的所有格子都乱了。
+        """
+        return cells
+
     def _extract_torrent_table(self, rows: bs4.element.ResultSet[bs4.Tag],
                                comment_cell: typing.Optional[int] = 2,
                                live_time_cell: typing.Optional[int] = 3,
@@ -377,6 +386,7 @@ class NexusApi(metaclass=ABCMeta):
         torrents = []
         for row in rows:
             cells: bs4.element.ResultSet[bs4.Tag] = row.find_all("td", recursive=False)
+            cells = self._rearrange_table_cells(cells)
             # cells 里依次是：
             #   0     1      2        3       4      5       6      7        8
             # 类型、题目、评论数、存活时间、大小、做种数、下载数、完成数、发布者

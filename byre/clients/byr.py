@@ -101,6 +101,14 @@ class ByrApi(NexusApi):
     def site(cls) -> str:
         return "byr"
 
+    @classmethod
+    @override
+    def _rearrange_table_cells(cls, cells):
+        if cells[0].select_one("a[href^=\"upload.php\"]") is not None:
+            return cells[1:]
+        else:
+            return cells
+
     @override
     def list_torrents(self, /, page: int = 0,
                       sorted_by: NexusSortableField = NexusSortableField.ID,
