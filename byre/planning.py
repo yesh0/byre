@@ -72,14 +72,15 @@ class PlannerConfig:
     def is_under_current_dir(self, torrent: LocalTorrent):
         """判断种子是否属于当前下载路径。"""
         parent = os.path.realpath(torrent.torrent.save_path)
+        # 是否到根目录
         while os.path.dirname(parent) != parent:
-            parent = os.path.dirname(parent)
             try:
                 if os.path.samefile(parent, self.download_dir):
                     # 暂时不支持嵌套树状结构（如 disk1 在 /mnt/disk1，disk2 在 /mnt/disk1/disk2）。
                     return True
             except FileNotFoundError:
                 pass
+            parent = os.path.dirname(parent) # 继续检查上级目录
         else:
             return False
 
