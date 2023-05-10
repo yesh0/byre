@@ -355,7 +355,7 @@ class NexusApi(metaclass=ABCMeta):
 
     @classmethod
     def _extract_page_upload_time(cls, page: bs4.Tag) -> datetime.datetime:
-        return datetime.datetime.fromisoformat(page.select_one("span[title]").attrs["title"])
+        return datetime.datetime.fromisoformat(page.select_one("span[title^=\"20\"]").attrs["title"])
 
     @classmethod
     def _rearrange_table_cells(cls, cells):
