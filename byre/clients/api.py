@@ -411,7 +411,10 @@ class NexusApi(metaclass=ABCMeta):
             # 标题需要一点特殊处理。
             title_cell = cells[1]
             torrent_link = title_cell.select_one("a[href^=details]")
-            title = torrent_link.attrs["title"]
+            if "title" in torrent_link.attrs:
+                title = torrent_link.attrs["title"]
+            else:
+                title = torrent_link.get_text(strip=True)
             byr_id = self.extract_url_id(torrent_link.attrs["href"])
             subtitle_newline = torrent_link.find_parent("td").find("br")
             if subtitle_newline is not None:
