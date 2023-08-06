@@ -14,11 +14,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """提供北邮人 PT 站的部分读取 API 接口。"""
-
+import datetime
 import logging
 import typing
 from urllib.parse import quote
 
+import bs4
 from overrides import override
 
 from byre.clients.api import NexusApi, NexusSortableField
@@ -108,6 +109,18 @@ class ByrApi(NexusApi):
             return cells[1:]
         else:
             return cells
+
+    @classmethod
+    @override
+    def _extract_category(cls, cell: bs4.Tag) -> str:
+        return cell.select_one(".cat-link").get_text(strip=True)
+
+    @classmethod
+    @override
+    def _extract_updated_at(cls, cells: bs4.element.ResultSet[bs4.Tag],
+                            live_time_cell: typing.Optional[int]) -> datetime.datetime:
+        text = cells[live_time_cell].get_text(strip=True)
+        return datetime.datetime.fromisoformat(f"{text[:10]} {text[10:]}")
 
     @override
     def list_torrents(self, /, page: int = 0,

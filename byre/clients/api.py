@@ -391,7 +391,7 @@ class NexusApi(metaclass=ABCMeta):
             #   0     1      2        3       4      5       6      7        8
             # 类型、题目、评论数、存活时间、大小、做种数、下载数、完成数、发布者
 
-            cat = cells[0].select_one("img").attrs["title"]
+            cat = self._extract_category(cells[0])
             comments = utils.int_or(cells[comment_cell].get_text(strip=True), 0) if comment_cell is not None else 0
             uploaded_at = self._extract_updated_at(cells, live_time_cell)
             size = utils.convert_iec_size(cells[size_cell].get_text(strip=True)) if size_cell is not None else 0.
@@ -456,6 +456,10 @@ class NexusApi(metaclass=ABCMeta):
                 hash=hs,
             ))
         return torrents
+
+    @classmethod
+    def _extract_category(cls, cell: bs4.Tag) -> str:
+        return cell.select_one("img").attrs["title"]
 
     @classmethod
     def _extract_updated_at(cls, cells: bs4.element.ResultSet[bs4.Tag],
