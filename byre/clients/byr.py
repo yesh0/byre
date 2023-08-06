@@ -113,12 +113,15 @@ class ByrApi(NexusApi):
     @classmethod
     @override
     def _extract_category(cls, cell: bs4.Tag) -> str:
-        return cell.select_one(".cat-link").get_text(strip=True)
+        link = cell.select_one(".cat-link")
+        return super()._extract_category(cell) if link is None else link.get_text(strip=True)
 
     @classmethod
     @override
     def _extract_updated_at(cls, cells: bs4.element.ResultSet[bs4.Tag],
                             live_time_cell: typing.Optional[int]) -> datetime.datetime:
+        if live_time_cell is None:
+            return datetime.datetime.now()
         text = cells[live_time_cell].get_text(strip=True)
         return datetime.datetime.fromisoformat(f"{text[:10]} {text[10:]}")
 
