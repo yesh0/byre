@@ -164,20 +164,20 @@ def _parse_url(url: str):
     return parsed.username, parsed.password, port
 
 
-def default_config_path():
-    return pathlib.Path(appdirs.user_config_dir("byre")).joinpath("byre.toml").absolute()
+def default_config_path(name: str = "byre"):
+    return pathlib.Path(appdirs.user_config_dir(name)).joinpath("byre.toml").absolute()
 
 
-def setup(config_path: typing.Optional[pathlib.Path] = None):
-    cache_dir = pathlib.Path(appdirs.user_cache_dir("byre"))
-    config_dir = pathlib.Path(appdirs.user_config_dir("byre"))
-    data_dir = pathlib.Path(appdirs.user_data_dir("byre"))
+def setup(config_path: typing.Optional[pathlib.Path] = None, name: str = "byre"):
+    cache_dir = pathlib.Path(appdirs.user_cache_dir(name))
+    config_dir = pathlib.Path(appdirs.user_config_dir(name))
+    data_dir = pathlib.Path(appdirs.user_data_dir(name))
     os.makedirs(cache_dir, exist_ok=True)
     os.makedirs(config_dir, exist_ok=True)
     os.makedirs(data_dir, exist_ok=True)
 
     if config_path is None:
-        config_path = default_config_path()
+        config_path = default_config_path(name)
     config_path = config_path.absolute()
     config, wants_download = interactive_configure(cache_dir, config_path)
 
