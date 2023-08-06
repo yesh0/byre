@@ -74,6 +74,8 @@ def pretty_torrent_list(torrents: list[TorrentInfo]):
     header = ["ID", "标题", ""]
     limits = [8, 54, 10]
     for t in torrents:
+        promotion = ("" if len(list(t.promotions.get_promotions())) == 0
+                     else click.style(f"[{str(t.promotions)}] ", fg="bright_yellow"))
         table.append((
             t.seed_id,
             click.style(t.title, bold=True),
@@ -81,7 +83,7 @@ def pretty_torrent_list(torrents: list[TorrentInfo]):
         ))
         table.append((
             "",
-            click.style(t.sub_title, dim=True)
+            promotion + click.style(t.sub_title, dim=True)
             + " (" + click.style(f"{t.seeders}↑", fg="bright_green")
             + " " + click.style(f"{t.leechers}↓", fg="cyan") + " )",
             click.style(f"{t.live_time:.2f} 天", fg="bright_magenta"),
@@ -119,8 +121,7 @@ def pretty_local_torrents(torrents: list[LocalTorrent], speed=False):
 
 def pretty_rename(pending: list[LocalTorrent]) -> str:
     if len(pending) == 0:
-        click.echo("种子列表为空")
-        return
+        return "种子列表为空"
     failed, found = [], []
     arrow = click.style("=>", dim=True)
     for t in pending:
