@@ -16,12 +16,14 @@
 """一些工具函数。"""
 import io
 import logging
+import re
 from dataclasses import dataclass
 
 import click
 
 _logger = logging.getLogger("byre.utils")
 _warning = _logger.warning
+_non_size_chars = re.compile("[^\\s\\w.]+")
 
 
 def convert_iec_size(size: str) -> float:
@@ -30,8 +32,10 @@ def convert_iec_size(size: str) -> float:
 
     原来：北邮人是 1024 派的, Linux 是 1000 派的, 所以 GB 会差 1-(1000/1024)**3=6.9%。
     现在：我们也 1024 派吧，毕竟 qBittorrent 也是这样。
+
+    然而，北邮人的字节数里加上了 "|" 啊或者是 `chr(0xa0)` 这种字符，就只能稍微变通一下了。
     """
-    size = size.strip()
+    size = re.sub(_non_size_chars, "", size).strip()
     if size.isdigit():
         _warning("“%s”不带单位，默认使用 GiB", size)
         size = f"{size} GiB"
