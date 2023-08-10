@@ -125,6 +125,20 @@ class ByrApi(NexusApi):
         text = cells[live_time_cell].get_text(strip=True)
         return datetime.datetime.fromisoformat(f"{text[:10]} {text[10:]}")
 
+    @classmethod
+    @override
+    def _extract_page_upload_time(cls, page: bs4.Tag) -> datetime.datetime:
+        node = page.select_one("table #outer table tr")
+        now = datetime.datetime.now()
+        if node is None:
+            return now
+        prefix = "发布于"
+        text = node.get_text(strip=True)
+        if prefix not in text:
+            return now
+        time = datetime.datetime.fromisoformat(text[text.find(prefix) + len(prefix):].strip())
+        return min(time, now)
+
     @override
     def list_torrents(self, /, page: int = 0,
                       sorted_by: NexusSortableField = NexusSortableField.ID,
