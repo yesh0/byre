@@ -52,23 +52,7 @@ class ByrClient(NexusClient):
     @override
     def _authorize_session(self) -> None:
         """进行登录请求，更新 `self._session`。"""
-        # 懒加载验证码（模型以及大块的依赖）。
-        import io
-        from PIL import Image
-        import byre.decaptcha as decaptcha
-        if self._decaptcha is None:
-            # 重用对象，避免重复创建。
-            self._decaptcha = decaptcha.DeCaptcha()
-            self._decaptcha.load_model()
-
         self._session.cookies.clear()
-
-        login_page = self.get_soup("login.php")
-        img_url = self.get_url(
-            login_page.select("img[src^=\"image.php\"]")[0].attrs["src"]
-        )
-        captcha_text = self._decaptcha.decode(Image.open(io.BytesIO(self._session.get(img_url).content)))
-        _debug("验证码解析结果：%s", captcha_text)
 
         _debug("正在发起登录请求")
         self._rate_limit()
@@ -77,8 +61,6 @@ class ByrClient(NexusClient):
             data={
                 "username": self.username,
                 "password": self.password,
-                "imagestring": captcha_text,
-                "imagehash": img_url.split("=")[-1],
             },
             allow_redirects=False,
         )

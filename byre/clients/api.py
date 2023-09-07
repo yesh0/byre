@@ -94,7 +94,11 @@ class NexusApi(metaclass=ABCMeta):
         if self._user_id != 0:
             return self._user_id
         page = self.client.get_soup("")
-        user_id = self.extract_url_id(page.select_one("a[href^=userdetails]").attrs["href"])
+        user_id = self.extract_url_id(
+            (
+                    page.select_one("a[href^=userdetails]")
+                    or page.select_one("a[href^=\"/userdetails\"]")
+            ).attrs["href"])
         _debug("提取的用户 ID 为：%d", user_id)
         self._user_id = user_id
         return user_id
@@ -328,7 +332,7 @@ class NexusApi(metaclass=ABCMeta):
     @classmethod
     def _extract_user_from_a(cls, cell: bs4.Tag) -> NexusUser:
         user = NexusUser(cls.site())
-        user_cell = cell.select_one("a[href^=userdetails]")
+        user_cell = cell.select_one("a[href^=userdetails]") or cell.select_one("a[href^=\"/userdetails\"]")
         if user_cell is not None:
             user.user_id, user.username = (
                 cls.extract_url_id(user_cell.attrs["href"]),
