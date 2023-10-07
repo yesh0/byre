@@ -59,8 +59,10 @@ class ByrClient(NexusClient):
         login_res = self._session.post(
             self.get_url("takelogin.php"),
             data={
-                "username": self.username,
+                "logintype": "username",
+                "userinput": self.username,
                 "password": self.password,
+                "autologin":"yes",
             },
             allow_redirects=False,
         )
