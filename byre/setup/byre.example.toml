@@ -50,6 +50,9 @@ url = "{qbt_url}"
 # 种子数据缓存
 cache_database = "{cache_db}"
 
+# 单种上传限速，单位是 MB/s
+upload_speed_limit = 95.0
+
 [planning.partition_0]
 # 实际可用空间的规划相关
 
@@ -72,6 +75,8 @@ download_dir = "{download_dir}"
 # max_total_size = "200 GiB"
 # max_download_size = "25 GiB"
 # download_dir = "/home/pi/MySmallerDisk2"
+# # 如果是 Windows 系统
+# download_dir = "F:\\TEST"
 
 # {extra_partitions}
 
