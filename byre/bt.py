@@ -24,7 +24,7 @@ import qbittorrentapi
 
 import byre.clients
 from byre import utils
-from byre.clients.data import LocalTorrent, TorrentInfo
+from byre.clients.data import LocalTorrent, TorrentInfo, TypedTorrent
 from byre.commands.config import GlobalConfig
 
 _logger = logging.getLogger("byre.bt")
@@ -156,12 +156,13 @@ class BtClient:
             except ValueError as e:
                 _warning(e)
                 if wants_all:
-                    torrents.append(LocalTorrent(torrent, 0, site, None))
+                    torrents.append(LocalTorrent(TypedTorrent(torrent), 0, site, None))
         return torrents
 
     @classmethod
     def local_torrent_from(cls, torrent: qbittorrentapi.TorrentDictionary, site: typing.Optional[str] = None):
-        name: str = torrent["name"]
+        t = TypedTorrent(torrent)
+        name = t.name
         if site is None:
             match = re.match("^\\[(\\w+)-\\d+]", name)
             if match is None:
@@ -171,7 +172,7 @@ class BtClient:
         if name.startswith(prefix):
             seed_id = utils.int_or(name[len(prefix):name.index("]")])
             if seed_id != 0:
-                return LocalTorrent(torrent, seed_id, site, None)
+                return LocalTorrent(t, seed_id, utils.cast(str, site), None)
         raise ValueError(f"种子命名不符合要求：{name}")
 
     @classmethod

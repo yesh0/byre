@@ -16,11 +16,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import importlib.resources
+import typing
 from pickle import loads
 
 import sklearn
 from PIL import Image
 from sklearn import svm
+
+from byre.utils import cast
 
 
 class DeCaptcha:
@@ -104,7 +107,7 @@ class DeCaptcha:
         features = []
         for i in range(self.__length):
             features.append(self.__get_feature(char_images[i]))
-        result = self.__clf.predict(features)
+        result = self.__clf.predict(typing.cast(typing.Any, features))
         text = "".join(result)
         return text
 
@@ -120,4 +123,4 @@ def _model_bytes() -> bytes:
     if version != sklearn.__version__:
         import logging
         logging.getLogger("byre.decaptcha").warning("当前 sklearn 版本与验证码模型训练版本有差别")
-    return importlib.resources.files(__package__).joinpath(f"captcha_classifier.{version}.pkl").read_bytes()
+    return importlib.resources.files(cast(str, __package__)).joinpath(f"captcha_classifier.{version}.pkl").read_bytes()

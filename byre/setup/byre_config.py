@@ -26,6 +26,7 @@ from byre.clients import SITES, CLIENTS
 from byre.clients.api import NexusApi
 from byre.clients.client import NexusClient
 from byre.commands.config import GlobalConfig
+from byre.utils import cast
 
 
 _logger = logging.getLogger("byre.setup")
@@ -128,7 +129,7 @@ def interactive_configure(cache_dir: pathlib.Path, config_path: pathlib.Path):
     config["cost_recovery_days"], config["removal_exemption_days"] = _prompt_scoring()
 
     os.makedirs(config_path.parent, exist_ok=True)
-    with importlib.resources.files(__package__).joinpath("byre.example.toml").open() as tmpl:
+    with importlib.resources.files(cast(str, __package__)).joinpath("byre.example.toml").open() as tmpl:
         with config_path.open("w") as c:
             c.write(tmpl.read().format_map(config))
             c.flush()

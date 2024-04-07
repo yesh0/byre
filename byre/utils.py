@@ -17,6 +17,7 @@
 import io
 import logging
 import re
+import typing
 from dataclasses import dataclass
 
 import click
@@ -72,7 +73,7 @@ def float_or(s: str, default=0.) -> float:
         return default
 
 
-def colorize_logger(name="byre") -> None:
+def colorize_logger(name: typing.Optional[str] = "byre") -> None:
     class ClickEchoStream(io.StringIO):
         def write(self, s: str) -> int:
             click.echo(s, nl=False, err=True)
@@ -139,3 +140,28 @@ class S:
             if self.size < 1024 ** (i + 1):
                 return f"{self.size / 1024 ** i:.2f} {unit}"
         return "超大"
+
+
+T = typing.TypeVar("T")
+
+def cast(t: typing.Type[T], value: typing.Any) -> T:
+    """
+    检查类型并使用 `typing.cast` 转化类型。
+
+    与 `typing.cast` 不同，这里如果类型不对会直接报错。基本上可以当成一个 inline 的 assert 来用。
+    早点报错总比类型不对的东西到处乱跑要好……
+
+    数值类型稍微宽松一点点。
+    """
+    if isinstance(value, t):
+        return typing.cast(T, value)
+    if t == int or t == float:
+        return t(value)
+    raise TypeError(f"类型错误：{type(value)} 无法转为 {t}")
+
+
+def not_none(value: T | None, msg: str | None = "值不能为 None") -> T:
+    """Inline None 值校验。"""
+    if value is None:
+        raise ValueError(msg)
+    return value

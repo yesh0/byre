@@ -24,6 +24,7 @@ from dataclasses import dataclass
 import bencoder
 
 from byre.clients.data import LocalTorrent, TorrentInfo
+from byre.utils import cast
 
 _logger = logging.getLogger("byre.storage")
 _warning = _logger.warning
@@ -105,7 +106,8 @@ class TorrentStore:
                 torrents[i * 100 + hash_index[t.hash]] = t
             for h in missing:
                 torrents[i * 100 + hash_index[h]] = self.save_local_torrent(chunk[hash_index[h]])
-        return torrents
+        assert all(t is not None for t in torrents)
+        return typing.cast(list[TorrentDO], torrents)
 
     def save_fetched_torrents(self, remote: list[TorrentInfo],
                               torrent_fetcher: typing.Callable[[TorrentInfo], bytes]):
@@ -159,7 +161,7 @@ class TorrentStore:
     def decode_torrent_file(cls, content: bytes) -> tuple[str, dict[str, int]]:
         torrent = bencoder.bdecode(content)
         info = torrent[b"info"]
-        root = info[b"name"].decode()
+        root = cast(bytes, info[b"name"]).decode()
         if b"files" not in info:
             paths = {root: info[b"length"]}
         else:
@@ -182,5 +184,5 @@ class TorrentStore:
 
     @classmethod
     def hash_local_path(cls, torrent: LocalTorrent) -> str:
-        local_files = dict((file.name, file.size) for file in torrent.torrent.files)
+        local_files = dict((cast(str, file.name), cast(int, file.size)) for file in torrent.torrent.files)
         return cls.hash_paths(local_files)

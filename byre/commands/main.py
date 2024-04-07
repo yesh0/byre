@@ -32,7 +32,7 @@ from byre.commands import pretty
 from byre.commands.bt import BtCommand
 from byre.commands.config import GlobalConfig, ConfigurableGroup
 from byre.commands.nexus import ByrCommand, NexusCommand
-from byre.utils import S
+from byre.utils import S, cast
 
 _logger = logging.getLogger("byre.commands.main")
 _debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
@@ -48,14 +48,38 @@ class MainCommand(ConfigurableGroup):
         self.bt = bt
         self.byr = byr
         self.sites = dict((site.api_cls.site(), site) for site in sites)
-        self.config: typing.Optional[GlobalConfig] = None
-        self.planner: typing.Optional[planning.Planner] = None
-        self.scorer: typing.Optional[scoring.Scorer] = None
-        self.store: typing.Optional[storage.TorrentStore] = None
+        self._config: typing.Optional[GlobalConfig] = None
+        self._planner: typing.Optional[planning.Planner] = None
+        self._scorer: typing.Optional[scoring.Scorer] = None
+        self._store: typing.Optional[storage.TorrentStore] = None
+
+    @property
+    def config(self):
+        if self._config is None:
+            raise RuntimeError("未初始化")
+        return self._config
+
+    @property
+    def planner(self):
+        if self._planner is None:
+            raise RuntimeError("未初始化")
+        return self._planner
+
+    @property
+    def scorer(self):
+        if self._scorer is None:
+            raise RuntimeError("未初始化")
+        return self._scorer
+
+    @property
+    def store(self):
+        if self._store is None:
+            raise RuntimeError("未初始化")
+        return self._store
 
     @override
     def configure(self, config: GlobalConfig):
-        self.scorer = scoring.Scorer(
+        self._scorer = scoring.Scorer(
             free_weight=config.optional(float, 1., "scoring", "free_weight"),
             cost_recovery_days=config.optional(float, 7., "scoring", "cost_recovery_days"),
             removal_exemption_days=config.optional(float, 15., "scoring", "removal_exemption_days"),
@@ -69,14 +93,14 @@ class MainCommand(ConfigurableGroup):
                     config.optional(str, f"{max_total_size / 50} B", "planning", disk, "max_download_size")),
                 download_dir=os.path.realpath(config.require(str, "planning", disk, "download_dir")),
             ))
-        self.planner = planning.Planner(planner_configs)
-        self.store = storage.TorrentStore(config.require(str, "qbittorrent", "cache_database"))
-        self.config = config
+        self._planner = planning.Planner(planner_configs)
+        self._store = storage.TorrentStore(config.require(str, "qbittorrent", "cache_database"))
+        self._config = config
         self.bt.configure(config)
         self.byr.configure(config)
 
     @click.command
-    @click.option("-a", "--at", default="byr", type=click.Choice(SITES.keys()), help="种子所在 PT 站点")
+    @click.option("-a", "--at", default="byr", type=click.Choice(list(SITES.keys())), help="种子所在 PT 站点")
     @click.option("-d", "--dry-run", is_flag=True, help="计算种子选择结果，但不添加种子到本地")
     @click.option("-p", "--print", "print_scores", is_flag=True, help="显示新种子评分以及最终选择结果")
     @click.option("-f", "--free-only", is_flag=True, help="只会下载免费促销的种子")
@@ -108,8 +132,9 @@ class MainCommand(ConfigurableGroup):
         else:
             for torrent in pending:
                 if torrent.seed_id != 0:
-                    _debug("正在重命名 %s", torrent.info.title)
-                    self.bt.api.rename_torrent(torrent, torrent.info)
+                    info = torrent.estimate_info()
+                    _debug("正在重命名 %s", info.title)
+                    self.bt.api.rename_torrent(torrent, info)
 
     @click.command(name="stat")
     def stat(self):
@@ -136,7 +161,7 @@ class MainCommand(ConfigurableGroup):
 
     @click.command(name="download")
     @click.argument("seed", type=click.STRING, metavar="<北邮人链接或是种子 ID>", nargs=-1)
-    @click.option("-a", "--at", default="byr", type=click.Choice(SITES.keys()), help="种子所在 PT 站点")
+    @click.option("-a", "--at", default="byr", type=click.Choice(list(SITES.keys())), help="种子所在 PT 站点")
     @click.option("-d", "--dry-run", is_flag=True, help="计算种子调整结果，但不添加种子到本地")
     @click.option("-p", "--paused", is_flag=True, help="使种子在添加后被暂停")
     @click.option("-e", "--exists", is_flag=True, help="告诉 qBittorrent 文件已经下载完毕并让其跳过哈希检查")
@@ -329,8 +354,8 @@ class MainCommand(ConfigurableGroup):
         if b"files" not in info:
             return [(root, info[b"length"])]
         return [(
-            "/".join((root, *(segment.decode() for segment in file[b"path"]))),
-            file[b"length"],
+            "/".join((root, *(cast(bytes, segment).decode() for segment in file[b"path"]))),
+            cast(int, file[b"length"]),
         ) for file in info[b"files"]]
 
     @staticmethod
@@ -406,7 +431,7 @@ class MainCommand(ConfigurableGroup):
 
     @classmethod
     def _torrent_files_exact_match(cls, local: LocalTorrent, remote_torrent: bytes, remote: TorrentInfo):
-        local_files = dict((file.name, file.size) for file in local.torrent.files)
+        local_files = dict((cast(str, file.name), cast(int, file.size)) for file in local.torrent.files)
         remote_files = dict(cls._extract_torrent_files(remote_torrent))
         if local_files == remote_files:
             _debug("文件详情匹配：均 %d 文件，文件路径、文件大小完全一致", len(local_files))

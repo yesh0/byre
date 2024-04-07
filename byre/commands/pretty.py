@@ -144,11 +144,12 @@ def pretty_rename(pending: list[LocalTorrent]) -> str:
                 f"{S(t.torrent.size)}",
                 t.torrent.hash[:7]
             ))
+            info = t.estimate_info()
             found.append((
                 arrow,
-                click.style(t.info.title, fg="bright_green"),
-                f"{S(t.info.file_size)}",
-                t.info.hash[:7],
+                click.style(info.title, fg="bright_green"),
+                f"{S(info.file_size)}",
+                info.hash[:7],
             ))
     return tabulate.tabulate((*failed, *found), maxcolwidths=[2, 50, 10, 10], disable_numparse=True)
 

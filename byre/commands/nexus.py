@@ -37,18 +37,24 @@ class NexusCommand(ConfigurableGroup):
         self.client_cls = client_cls
         #: 对应的站点 API。
         self.api_cls = api_cls
-        self.api: typing.Optional[NexusApi] = None
+        self._api: typing.Optional[NexusApi] = None
         super().__init__(
             name=api_cls.site(),
             help=f"访问{api_cls.name()}。",
             no_args_is_help=True,
         )
 
+    @property
+    def api(self) -> NexusApi:
+        if self._api is None:
+            raise RuntimeError("API 未初始化")
+        return self._api
+
     @override
     def configure(self, config: GlobalConfig):
         site = self.api_cls.site()
         proxy = config.optional(str, "", site, "http_proxy")
-        self.api = self.api_cls(self.client_cls(
+        self._api = self.api_cls(self.client_cls(
             config.require(str, site, "username"),
             config.require(str, site, "password", password=True),
             config.optional(str, "byr.cookies", site, "cookie_cache"),

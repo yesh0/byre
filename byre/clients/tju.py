@@ -21,10 +21,10 @@ from urllib.parse import quote
 import bs4
 from overrides import override
 
-from byre import utils
 from byre.clients.api import NexusApi
 from byre.clients.byr import NexusSortableField, TorrentInfo
 from byre.clients.client import NexusClient
+from byre.utils import cast, convert_iec_size, int_or, not_none
 
 
 _logger = logging.getLogger("byre.clients.byr")
@@ -80,11 +80,11 @@ class TjuPtApi(NexusApi):
         if len(kwargs) > 0:
             _warning("不支持的参数：%s", kwargs.keys())
         order = "desc" if desc else "asc"
-        page = self.client.get_soup(
+        page_element = self.client.get_soup(
             f"torrents.php?page={page}&sort={sorted_by.value}&type={order}&inclbookmarked={int(fav)}"
             + ("" if search is None else f"&search={quote(search)}")
         )
-        return self._extract_torrent_table(page.select("table.torrents > tr")[1:])
+        return self._extract_torrent_table(page_element.select("table.torrents > tr")[1:])
 
     @classmethod
     @override
@@ -99,19 +99,19 @@ class TjuPtApi(NexusApi):
     @override
     def _extract_info_bar_ranking(cls, page: bs4.Tag) -> int:
         tag = [tag for tag in page.select("#info_block span.color_active") if "上传排名" in tag.text][0]
-        return utils.int_or(tag.find_next_sibling(name="a").text.strip())
+        return int_or(not_none(tag.find_next_sibling(name="a")).text.strip())
 
     @classmethod
     @override
     def _extract_page_subtitle(cls, page: bs4.Tag) -> str:
         tag = [tag for tag in page.select(".embedded table tr td") if "副标题" in tag.text][0]
-        return tag.next_sibling.text.strip()
+        return not_none(tag.next_sibling).text.strip()
 
     @classmethod
     def _extract_basic_info_row(cls, page: bs4.Tag) -> dict[str, str]:
         row = [tag for tag in page.select(".embedded table tr td") if "基本信息" in tag.text][0]
         info = {}
-        for tag in row.find_next("td").find_all("b", recursive=False):
+        for tag in cast(bs4.Tag, not_none(row.find_next("td"))).find_all("b", recursive=False):
             info[tag.get_text(strip=True)] = tag.next_sibling.text.strip()
         return info
 
@@ -125,12 +125,14 @@ class TjuPtApi(NexusApi):
     @classmethod
     @override
     def _extract_page_size(cls, page: bs4.Tag) -> float:
-        return utils.convert_iec_size(cls._extract_basic_info_row(page)["大小:"])
+        return convert_iec_size(cls._extract_basic_info_row(page)["大小:"])
 
     @classmethod
     @override
     def _extract_page_upload_time(cls, page: bs4.Tag) -> datetime.datetime:
         row = [tag for tag in page.select(".embedded table tr td") if "种子名称" in tag.text][0]
-        text = row.find_next("td").find(string=lambda s: "发布于" in s).text
+        text = not_none(not_none(row.find_next("td"))
+                        .find(string=lambda s: "发布于" in s) # type: ignore
+                        ).text
         i = text.index("发布于")
         return datetime.datetime.fromisoformat(text[i + 3:].strip())

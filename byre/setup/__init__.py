@@ -32,6 +32,7 @@ import requests
 
 from byre.bt import BtClient
 from byre.setup.byre_config import interactive_configure
+from byre.utils import cast
 
 _QBITTORRENT_SIZE = "qbittorrent.size"
 
@@ -74,7 +75,7 @@ def download(output: pathlib.Path):
     _info("正在下载 qBittorrent 客户端……")
     os.makedirs(output.parent, exist_ok=True)
     response = requests.get(_get_download_url(_get_arch()), stream=True)
-    content_length = response.headers.get('content-length')
+    content_length = cast(str, response.headers.get('content-length'))
     _debug("qBittorrent 客户端下载大小：%s", content_length)
     with size_file.open("w") as size_output:
         size_output.write(content_length)
@@ -101,7 +102,7 @@ def _init_qbittorrent_config(path: pathlib.Path, port: int):
         kilobytes = int([line.split() for line in meminfo.readlines() if line.startswith("MemTotal:")][0][1])
     allowed_mb = round(kilobytes / 1024 / 2)
     _info("总内存大小 %d kB，默认允许 qBittorrent 使用 1/2 的内存：%d MB", kilobytes, allowed_mb)
-    with importlib.resources.files(__package__).joinpath("qBittorrent.conf.tmpl").open() as f:
+    with importlib.resources.files(cast(str, __package__)).joinpath("qBittorrent.conf.tmpl").open() as f:
         template = f.read()
     config = template.format_map({
         "memory": allowed_mb,
@@ -126,7 +127,7 @@ def _init_qbittorrent_config(path: pathlib.Path, port: int):
 def _init_systemd_unit(executable: pathlib.Path, profile_dir: pathlib.Path):
     home = pathlib.Path.home()
     service_file = home.joinpath(".config", "systemd", "user", "qbittorrent.service")
-    with importlib.resources.files(__package__).joinpath("qbittorrent.service.tmpl").open() as f:
+    with importlib.resources.files(cast(str, __package__)).joinpath("qbittorrent.service.tmpl").open() as f:
         template = f.read()
     unit = template.format_map({
         "qbittorrent_command": f"{executable} --profile=\"{profile_dir}\"",

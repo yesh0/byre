@@ -134,9 +134,9 @@ class ByrApi(NexusApi):
         if len(kwargs) > 0:
             _warning("不支持的参数：%s", kwargs.keys())
         order = "desc" if desc else "asc"
-        page = self.client.get_soup(
+        page_element = self.client.get_soup(
             f"torrents.php?page={page}&spstate={promotion.get_int()}"
             f"&pktype={tag.value}&sort={sorted_by.value}&type={order}&inclbookmarked={int(fav)}"
             + ("" if search is None else f"&search={quote(search)}")
         )
-        return self._extract_torrent_table(page.select("table.torrents > tr")[1:])
+        return self._extract_torrent_table(page_element.select("table.torrents > tr")[1:])

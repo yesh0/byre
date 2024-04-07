@@ -31,8 +31,8 @@ _warning = logging.getLogger("byre.commands.bt").warning
 
 class BtCommand(ConfigurableGroup):
     def __init__(self, *remotes: NexusCommand):
-        self.config: typing.Optional[GlobalConfig] = None
-        self.api: typing.Optional[BtClient] = None
+        self._config: typing.Optional[GlobalConfig] = None
+        self._api: typing.Optional[BtClient] = None
         super().__init__(
             name="qbt",
             help="访问 qBittorrent 信息。",
@@ -40,11 +40,23 @@ class BtCommand(ConfigurableGroup):
         )
         self.sites = dict((api.api_cls.site(), api) for api in remotes)
 
+    @property
+    def config(self) -> GlobalConfig:
+        if self._config is None:
+            raise RuntimeError("配置未初始化")
+        return self._config
+
+    @property
+    def api(self) -> BtClient:
+        if self._api is None:
+            raise RuntimeError("API 未初始化")
+        return self._api
+
     @override
     def configure(self, config: GlobalConfig):
-        self.api = BtClient(config.require(str, "qbittorrent", "url", password=True))
-        self.api.load_config(config)
-        self.config = config
+        self._api = BtClient(config.require(str, "qbittorrent", "url", password=True))
+        self._api.load_config(config)
+        self._config = config
 
     @click.command
     @click.option("-a", "--all", "wants_all", is_flag=True, help="显示所有种子，包括不是由脚本添加的种子")

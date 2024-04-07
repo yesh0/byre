@@ -22,6 +22,8 @@ from dataclasses import dataclass
 
 import qbittorrentapi
 
+from byre.utils import cast
+
 
 @dataclass
 class NexusUser:
@@ -220,9 +222,95 @@ class TorrentInfo:
         return CATEGORIES.get(cat, "Others")
 
 
+class TypedTorrent:
+    """
+    给所有属性都是 JsonValueT 的 qbittorent-api TorrentDictionary 加上类型信息。
+
+    所有属性都是 type check 过的。
+    对应类型请见 https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#get-torrent-list 。
+    """
+
+    torrent: qbittorrentapi.TorrentDictionary
+
+    def __init__(self, torrent: qbittorrentapi.TorrentDictionary):
+        self.torrent = torrent
+
+    @property
+    def amount_left(self):
+        return cast(int, self.torrent.amount_left)
+
+    @property
+    def category(self):
+        return cast(str, self.torrent.category)
+
+    @property
+    def completion_on(self):
+        return cast(int, self.torrent.completion_on)
+
+    @property
+    def dlspeed(self):
+        return cast(int, self.torrent.dlspeed)
+
+    @property
+    def downloaded(self):
+        return cast(int, self.torrent.downloaded)
+
+    @property
+    def files(self):
+        return self.torrent.files
+
+    @property
+    def hash(self):
+        return cast(str, self.torrent.hash)
+
+    @property
+    def last_activity(self):
+        return cast(int, self.torrent.last_activity)
+
+    @property
+    def name(self):
+        return cast(str, self.torrent.name)
+
+    @property
+    def num_complete(self):
+        return cast(int, self.torrent.num_complete)
+
+    @property
+    def num_incomplete(self):
+        return cast(int, self.torrent.num_incomplete)
+
+    @property
+    def ratio(self):
+        return cast(float, self.torrent.ratio)
+
+    @property
+    def save_path(self):
+        return cast(str, self.torrent.save_path)
+
+    @property
+    def size(self):
+        return cast(int, self.torrent.size)
+
+    @property
+    def tags(self):
+        return cast(str, self.torrent.tags)
+
+    @property
+    def uploaded(self):
+        return cast(int, self.torrent.uploaded)
+
+    @property
+    def upspeed(self):
+        return cast(int, self.torrent.upspeed)
+
+    @property
+    def uploaded_session(self):
+        return cast(int, self.torrent.uploaded_session)
+
+
 @dataclass
 class LocalTorrent:
-    torrent: qbittorrentapi.TorrentDictionary
+    torrent: TypedTorrent
     """本地 qBittorrent 管理的种子。"""
 
     seed_id: int

@@ -15,10 +15,13 @@
 
 """各种 NexusPHP 站点的客户端。"""
 
+import typing
+
+from byre.clients.api import NexusApi
 import byre.clients.byr as byr
 import byre.clients.tju as tju
 
-APIS = [
+APIS: list[typing.Type[NexusApi]] = [
     byr.ByrApi,
     tju.TjuPtApi,
 ]

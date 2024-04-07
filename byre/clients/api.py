@@ -23,9 +23,9 @@ from urllib.parse import parse_qs, urlparse
 
 import bs4
 
-from byre import utils
 from byre.clients.client import NexusClient
 from byre.clients.data import NexusUser, TorrentInfo, TorrentPromotion, TorrentTag, UserTorrentKind
+from byre.utils import cast, convert_iec_size, float_or, int_or, not_none
 
 _logger = logging.getLogger("byre.clients.api")
 _debug, _info, _warning = _logger.debug, _logger.info, _logger.warning
@@ -95,7 +95,7 @@ class NexusApi(metaclass=ABCMeta):
             return self._user_id
         page = self.client.get_soup("")
         user_id = self.extract_url_id(
-            (
+            not_none(
                     page.select_one("a[href^=userdetails]")
                     or page.select_one("a[href^=\"/userdetails\"]")
             ).attrs["href"])
@@ -116,8 +116,8 @@ class NexusApi(metaclass=ABCMeta):
         没想好怎么比较好地兼容不同的站点，总之这里写的是北邮人的版本，有需要的重载吧。
         """
         ranking_tag = next(tag for tag in page.select("#info_block .color_bonus") if "上传排行" in tag.text)
-        ranking = ranking_tag.next_sibling.text.strip()
-        return utils.int_or(ranking)
+        ranking = not_none(ranking_tag.next_sibling).text.strip()
+        return int_or(ranking)
 
     @classmethod
     def _extract_info_bar(cls, user: NexusUser, page: bs4.Tag) -> None:
@@ -126,12 +126,12 @@ class NexusApi(metaclass=ABCMeta):
         up_arrow = page.select_one("#info_block .arrowup")
         seeding = str("0" if up_arrow is None else up_arrow.next).strip()
         if seeding.isdigit():
-            user.seeding = utils.int_or(seeding)
+            user.seeding = int_or(seeding)
 
         down_arrow = page.select_one("#info_block .arrowdown")
         downloading = str("0" if down_arrow is None else down_arrow.next).strip()
         if downloading.isdigit():
-            user.downloading = utils.int_or(downloading)
+            user.downloading = int_or(downloading)
 
         connectable = page.select_one("#info_block font[color=green]")
         user.connectable = connectable is not None and "是" in connectable.text
@@ -169,14 +169,14 @@ class NexusApi(metaclass=ABCMeta):
 
         if _MANA in info:
             # 北洋园这里在数字后面跟了一个链接，总之能跑就行。
-            user.mana = utils.float_or(
+            user.mana = float_or(
                 "".join(c for c in info[_MANA].get_text(strip=True) if c == "." or c.isdigit())
             )
 
         if _INVITATIONS in info:
             invitations = info[_INVITATIONS].get_text(strip=True)
             if "没有邀请资格" not in invitations:
-                user.invitations = utils.int_or(invitations)
+                user.invitations = int_or(invitations)
 
         if _TRANSFER in info:
             # 北邮人应该是原来的 NexusPHP 吧。
@@ -187,22 +187,20 @@ class NexusApi(metaclass=ABCMeta):
                     continue
                 field, value = [s.strip() for s in text.split(":", 1)]
                 if field == "分享率":
-                    user.ratio = utils.float_or(value)
+                    user.ratio = float_or(value)
                 elif field == "上传量":
-                    user.uploaded = utils.convert_iec_size(value)
+                    user.uploaded = convert_iec_size(value)
                 elif field == "下载量":
-                    user.downloaded = utils.convert_iec_size(value)
+                    user.downloaded = convert_iec_size(value)
 
         if _UPLOADED in info:
             # 北洋园只有上传量。
-            user.uploaded = utils.convert_iec_size(info[_UPLOADED].get_text(strip=True))
+            user.uploaded = convert_iec_size(info[_UPLOADED].get_text(strip=True))
 
     def torrent(self, seed_id: int) -> TorrentInfo:
         """获取种子详情。"""
         page = self.client.get_soup(f"details.php?id={seed_id}&hit=1")
-        title_tag = page.find("h1", recursive=True)
-        if title_tag is None:
-            raise ValueError("种子不存在")
+        title_tag = cast(bs4.Tag, not_none(page.find("h1", recursive=True), "种子不存在"))
         title = next(iter(title_tag.children)).text.strip()
         subtitle = self._extract_page_subtitle(page)
         cat, sec_cat = self._extract_page_categories(page)
@@ -212,14 +210,14 @@ class NexusApi(metaclass=ABCMeta):
         uploaded_at = self._extract_page_upload_time(page)
         live_time = (datetime.datetime.now() - uploaded_at).total_seconds() / (24 * 60 * 60)
 
-        peers = page.select_one("div#peercount").get_text(strip=True)
+        peers = not_none(page.select_one("div#peercount")).get_text(strip=True)
         seeder_re = re.compile("(\\d+)个做种者")
         leecher_re = re.compile("(\\d+)个下载者")
-        seeders = utils.int_or(seeder_re.search(peers).group(1))
-        leechers = utils.int_or(leecher_re.search(peers).group(1))
-        finished = utils.int_or(page.select_one("a[href^=viewsnatches] > b").text)
+        seeders = int_or(not_none(seeder_re.search(peers)).group(1))
+        leechers = int_or(not_none(leecher_re.search(peers)).group(1))
+        finished = int_or(not_none(page.select_one("a[href^=viewsnatches] > b")).text)
 
-        user = self._extract_user_from_a(page.select_one("h1 + table tr"))
+        user = self._extract_user_from_a(not_none(page.select_one("h1 + table tr")))
 
         hash_field = [tag for tag in page.select("h1 + table b") if "Hash码" in tag.text]
         if len(hash_field) == 0:
@@ -261,7 +259,7 @@ class NexusApi(metaclass=ABCMeta):
             f"getusertorrentlistajax.php?userid={self.current_user_id()}&type={kind.name.lower()}")
         if kind != UserTorrentKind.SEEDING:
             # 其它表格基本只有类型和标题两列信息有用
-            return self._extract_torrent_table(page.select("table > tr")[1:], *([None] * 10))
+            return self._extract_torrent_table(page.select("table > tr")[1:], *typing.cast(typing.Any, [None] * 10))
         # 上传种子表格的格式：
         #   0     1     2      3       4       5       6       7
         # 类型、题目、大小、做种数、下载数、上传量、下载量、分享率
@@ -344,18 +342,18 @@ class NexusApi(metaclass=ABCMeta):
 
     @classmethod
     def _extract_page_subtitle(cls, page: bs4.Tag) -> str:
-        return page.select_one("#subtitle").get_text(strip=True)
+        return not_none(page.select_one("#subtitle")).get_text(strip=True)
 
     @classmethod
     def _extract_page_categories(cls, page: bs4.Tag) -> tuple[str, str]:
-        cat = page.select_one("span#type").text.strip()
+        cat = not_none(page.select_one("span#type")).text.strip()
         sec_type = page.select_one("span#sec_type")
         sec_cat = sec_type.text.strip() if sec_type is not None else "其它"
         return cat, sec_cat
 
     @classmethod
     def _extract_page_size(cls, page: bs4.Tag) -> float:
-        return utils.convert_iec_size(page.select_one("span#type").parent.find(text=re.compile("\\d")).text)
+        return convert_iec_size(not_none(not_none(not_none(page.select_one("span#type")).parent).find(text=re.compile("\\d"))).text)
 
     @classmethod
     def _extract_page_upload_time(cls, page: bs4.Tag) -> datetime.datetime:
@@ -375,7 +373,7 @@ class NexusApi(metaclass=ABCMeta):
         """
         return cells
 
-    def _extract_torrent_table(self, rows: bs4.element.ResultSet[bs4.Tag],
+    def _extract_torrent_table(self, rows: typing.Iterable[bs4.Tag],
                                comment_cell: typing.Optional[int] = 2,
                                live_time_cell: typing.Optional[int] = 3,
                                size_cell: typing.Optional[int] = 4,
@@ -401,17 +399,17 @@ class NexusApi(metaclass=ABCMeta):
             # 类型、题目、评论数、存活时间、大小、做种数、下载数、完成数、发布者
 
             cat = self._extract_category(cells[0])
-            comments = utils.int_or(cells[comment_cell].get_text(strip=True), 0) if comment_cell is not None else 0
+            comments = int_or(cells[comment_cell].get_text(strip=True), 0) if comment_cell is not None else 0
             uploaded_at = self._extract_updated_at(cells, live_time_cell)
-            size = utils.convert_iec_size(cells[size_cell].get_text(strip=True)) if size_cell is not None else 0.
-            seeders = utils.int_or(cells[seeder_cell].get_text(strip=True)) if seeder_cell is not None else 0
-            leechers = utils.int_or(cells[leecher_cell].get_text(strip=True)) if leecher_cell is not None else 0
-            finished = utils.int_or(cells[finished_cell].get_text(strip=True)) if finished_cell is not None else 0
-            uploaded = utils.convert_iec_size(
+            size = convert_iec_size(cells[size_cell].get_text(strip=True)) if size_cell is not None else 0.
+            seeders = int_or(cells[seeder_cell].get_text(strip=True)) if seeder_cell is not None else 0
+            leechers = int_or(cells[leecher_cell].get_text(strip=True)) if leecher_cell is not None else 0
+            finished = int_or(cells[finished_cell].get_text(strip=True)) if finished_cell is not None else 0
+            uploaded = convert_iec_size(
                 cells[uploaded_cell].get_text(strip=True)) if uploaded_cell is not None else 0
-            downloaded = utils.convert_iec_size(
+            downloaded = convert_iec_size(
                 cells[downloaded_cell].get_text(strip=True)) if downloaded_cell is not None else 0
-            ratio = utils.float_or(cells[ratio_cell].get_text(strip=True)) if ratio_cell is not None else 0.
+            ratio = float_or(cells[ratio_cell].get_text(strip=True)) if ratio_cell is not None else 0.
             if uploader_cell is not None:
                 user = self._extract_user_from_a(cells[uploader_cell])
             else:
@@ -419,13 +417,13 @@ class NexusApi(metaclass=ABCMeta):
 
             # 标题需要一点特殊处理。
             title_cell = cells[1]
-            torrent_link = title_cell.select_one("a[href^=details]")
+            torrent_link = not_none(title_cell.select_one("a[href^=details]"))
             if "title" in torrent_link.attrs:
                 title = torrent_link.attrs["title"]
             else:
                 title = torrent_link.get_text(strip=True)
             byr_id = self.extract_url_id(torrent_link.attrs["href"])
-            subtitle_newline = torrent_link.find_parent("td").find("br")
+            subtitle_newline = not_none(torrent_link.find_parent("td")).find("br")
             if subtitle_newline is not None:
                 subtitle_node = subtitle_newline.next_sibling
                 subtitle = subtitle_node.get_text() if isinstance(subtitle_node, bs4.element.NavigableString) else ""
@@ -468,12 +466,12 @@ class NexusApi(metaclass=ABCMeta):
 
     @classmethod
     def _extract_category(cls, cell: bs4.Tag) -> str:
-        return cell.select_one("img").attrs["title"]
+        return not_none(cell.select_one("img")).attrs["title"]
 
     @classmethod
     def _extract_updated_at(cls, cells: bs4.element.ResultSet[bs4.Tag],
                             live_time_cell: typing.Optional[int]) -> datetime.datetime:
         return (
-            datetime.datetime.fromisoformat(cells[live_time_cell].select_one("span").attrs["title"])
+            datetime.datetime.fromisoformat(not_none(cells[live_time_cell].select_one("span")).attrs["title"])
             if live_time_cell is not None else datetime.datetime.now()
         )
