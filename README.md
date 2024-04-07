@@ -1,12 +1,12 @@
-# byre - 一款北邮人/北洋园 PT 命令行操作软件
+# byre - 一款北邮人 PT 命令行操作软件
 
 （示例图片用的 asciinema 的中文渲染有问题，将就着看吧。）
 
 [![asciicast](https://asciinema.org/a/570391.svg)](https://asciinema.org/a/570391)
 
-- **命令行访问站点**：可以在命令行查看北邮人/北洋园站点的种子列表、用户信息、种子信息等等。
+- **命令行访问站点**：可以在命令行查看北邮人站点的种子列表、用户信息、种子信息等等。
 
-- **qBittorrent 种子管理**：可以将本地的种子与北邮人/北洋园的种子关联起来，以列表展示。
+- **qBittorrent 种子管理**：可以将本地的种子与北邮人的种子关联起来，以列表展示。
 
 - **种子自动下载**：
 
@@ -92,8 +92,6 @@ Usage: byre [OPTIONS] COMMAND [ARGS]...
 - 下载位置
 - 最大允许的占用空间上限、一次下载量上限
 
-不使用北洋园或者 `hitchhike` 命令的话理论上不需要配置北洋园相关的东西。
-
 ### 自动刷流配置
 
 自动刷流需要一些外部的配置：
@@ -101,11 +99,23 @@ Usage: byre [OPTIONS] COMMAND [ARGS]...
 - Windows 我不知道（欢迎提供思路）。
 - macOS 我更不知道（欢迎提供思路）。
 
-我个人定时运行的命令是 `byre do main --free-only && byre do hitchhike** 。
+我个人定时运行的命令是 `byre do main --free-only && byre do hitchhike` 。
 
-### FAQ & Warnings
+### 北洋园相关
 
-0. 关于北洋园使用的 **警告** ：[北洋园禁止脚本](https://www.tjupt.org/forums.php?action=viewtopic&topicid=16580)，请不要使用相关功能。
+本脚本曾经支持过北洋园，但是因为现在北洋园禁用脚本，所以本仓库不计划继续更新和测试相关内容。
+北洋园的相关功能仍然可以通过命令行调用，但是我们不保证其可以正常工作，
+并可能会在后续的版本中移除相关代码。相关功能包括：
+
+- `byre tju` 访问北洋园 PT 站的所有子命令
+- `byre qbt --pt tju`
+- `byre do download --at tju`
+- `byre do hitchhike`
+- `byre do main --at tju`
+
+不使用有上述参数的命令的话理论上不需要配置北洋园相关的东西。
+
+1. 关于北洋园使用的 **警告** ：[北洋园禁止脚本](https://www.tjupt.org/forums.php?action=viewtopic&topicid=16580)，请不要使用相关功能。
    现在北洋园使用的是 H&R 机制，基本上可以不用担心分享率，所以这里其实更推荐直接用 RSS 配合 qBittorrent 等来直接自动下载。
    qBittorrent 里也可以对种子进行一定的限制，例如：
    - 在[获取 RSS](https://www.tjupt.org/getrss.php) 时勾选 `[大小]` 则可以通过 qBittorrent 的正则进行大小的筛选：
@@ -114,11 +124,11 @@ Usage: byre [OPTIONS] COMMAND [ARGS]...
    - 勾选 `[发布者]` 则可以通过在“Must Contain”里填入发布者名字来筛选相对可靠的资源。
    个人认为这样已经足够刷流（以及刷升级所需的下载数量）了。（但你需要隔段时间去删删种子。）
 
-1. 北洋园站点无法下载？
+2. 北洋园站点无法下载？
 
    北洋园在第一次下载种子时会跳转到一个“第一次下载提示”页面，你需要手动去下载一个种子然后勾选“下次不再提示”。
 
-2. 北洋园还是无法下载？
+3. 北洋园还是无法下载？
 
    有可能站点发公告了，不手动点击“已读”的话是没法进行任何操作的。请登录站点读公告。
 
