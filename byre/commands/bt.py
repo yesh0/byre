@@ -83,6 +83,8 @@ class BtCommand(ConfigurableGroup):
         else:
             remote = []
             for site in self.sites.values():
+                if not self.config.optional(bool, False, site.name):
+                    continue
                 site.configure(self.config)
                 remote.extend(site.api.list_user_torrents())
         torrents = self.api.list_torrents(
