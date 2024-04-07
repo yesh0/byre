@@ -33,8 +33,14 @@ class DeCaptcha:
         self.__is_active = False
         self.__BIN_TABLE = [0] * 140 + [1] * 116
 
-    def __points_collect(self, bin_image: Image.Image, visited: list[list[int]], x: int, y: int,
-                         points: list[tuple[int, int]]) -> None:
+    def __points_collect(
+        self,
+        bin_image: Image.Image,
+        visited: list[list[int]],
+        x: int,
+        y: int,
+        points: list[tuple[int, int]],
+    ) -> None:
         for step_x in range(-1, 2):
             for step_y in range(-1, 2):
                 i = x + step_x
@@ -122,5 +128,12 @@ def _model_bytes() -> bytes:
     version = "1.2.2"
     if version != sklearn.__version__:
         import logging
-        logging.getLogger("byre.decaptcha").warning("当前 sklearn 版本与验证码模型训练版本有差别")
-    return importlib.resources.files(cast(str, __package__)).joinpath(f"captcha_classifier.{version}.pkl").read_bytes()
+
+        logging.getLogger("byre.decaptcha").warning(
+            "当前 sklearn 版本与验证码模型训练版本有差别"
+        )
+    return (
+        importlib.resources.files(cast(str, __package__))
+        .joinpath(f"captcha_classifier.{version}.pkl")
+        .read_bytes()
+    )

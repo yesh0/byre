@@ -36,12 +36,12 @@ class NexusClient(metaclass=ABCMeta):
     """
 
     def __init__(
-            self,
-            username: str,
-            password: str,
-            cookie_file: str,
-            proxies: typing.Optional[dict[str, str]] = None,
-            request_frequency=2.,
+        self,
+        username: str,
+        password: str,
+        cookie_file: str,
+        proxies: typing.Optional[dict[str, str]] = None,
+        request_frequency=2.0,
     ) -> None:
         #: 站点登录用户名。
         self.username = username
@@ -50,21 +50,25 @@ class NexusClient(metaclass=ABCMeta):
         #: 登录会话的 Cookies 缓存文件。
         self._cookie_file = cookie_file
         #: 最后一次请求的时间（秒），用于全局限流。
-        self._last_requested_at = 0.
+        self._last_requested_at = 0.0
         #: 最大请求频率。
         self._request_freq = request_frequency
         #: 会话。
         self._session = requests.Session()
         if proxies is not None:
             self._session.proxies.update(proxies)
-        self._session.headers.update({
-            "User-Agent": " ".join([
-                "Mozilla/5.0 (X11; Linux x86_64)",
-                "AppleWebKit/537.36 (KHTML, like Gecko)",
-                "Chrome/103.0.9999.0",
-                "Safari/537.36",
-            ]),
-        })
+        self._session.headers.update(
+            {
+                "User-Agent": " ".join(
+                    [
+                        "Mozilla/5.0 (X11; Linux x86_64)",
+                        "AppleWebKit/537.36 (KHTML, like Gecko)",
+                        "Chrome/103.0.9999.0",
+                        "Safari/537.36",
+                    ]
+                ),
+            }
+        )
         self._update_session_from_cache()
 
     @classmethod
@@ -129,9 +133,8 @@ class NexusClient(metaclass=ABCMeta):
         if os.path.exists(self._cookie_file):
             with open(self._cookie_file, "rb") as file:
                 cookies = pickle.load(file)
-                if (
-                        not isinstance(cookies, dict) or
-                        any(key not in cookies for key in ["username", "cookies"])
+                if not isinstance(cookies, dict) or any(
+                    key not in cookies for key in ["username", "cookies"]
                 ):
                     _warning("缓存文件格式错误")
                     return False
@@ -157,8 +160,8 @@ class NexusClient(metaclass=ABCMeta):
 
     def _rate_limit(self):
         passed = time.time() - self._last_requested_at
-        if passed < 1. / self._request_freq:
-            time.sleep(1. / self._request_freq - passed)
+        if passed < 1.0 / self._request_freq:
+            time.sleep(1.0 / self._request_freq - passed)
 
     def _request_finished(self):
         self._last_requested_at = time.time()

@@ -30,7 +30,9 @@ from byre.commands.nexus import NexusCommand, ByrCommand
 
 
 @click.group()
-@click.option("-c", "--config", type=GlobalConfig(), default="", help="TOML 格式配置文件")
+@click.option(
+    "-c", "--config", type=GlobalConfig(), default="", help="TOML 格式配置文件"
+)
 @click.option("-v", "--verbose", is_flag=True, help="输出详细信息")
 @click.pass_context
 def main(ctx: click.Context, config: GlobalConfig, verbose: bool):
@@ -70,7 +72,10 @@ def entry_point():
     # 这些要在 click 产生输出之前设置好，因为要兼容 setuptools 的配置（直接调用 main 函数），所以只能放这里了。
     os.environ["LANGUAGE"] = "zh"
     # 想用 importlib 但似乎 gettext 不支持，希望没问题。
-    gettext.bindtextdomain("messages", localedir=os.path.join(os.path.dirname(os.path.realpath(__file__)), "locales"))
+    gettext.bindtextdomain(
+        "messages",
+        localedir=os.path.join(os.path.dirname(os.path.realpath(__file__)), "locales"),
+    )
     utils.colorize_logger(None)
     logging.basicConfig(stream=sys.stderr)
     logging.getLogger("byre").setLevel(logging.INFO)

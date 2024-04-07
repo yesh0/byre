@@ -80,24 +80,29 @@ class PlannerConfig:
                     return True
             except FileNotFoundError:
                 pass
-            parent = os.path.dirname(parent) # 继续检查上级目录
+            parent = os.path.dirname(parent)  # 继续检查上级目录
         else:
             return False
 
-    def downloader(self, remaining: float, scored_local: list[tuple[LocalTorrent, float]],
-                   removable_hashes: dict[str, float], duplicates: dict[str, list[LocalTorrent]], site: str):
-        downloaded = 0.
+    def downloader(
+        self,
+        remaining: float,
+        scored_local: list[tuple[LocalTorrent, float]],
+        removable_hashes: dict[str, float],
+        duplicates: dict[str, list[LocalTorrent]],
+        site: str,
+    ):
+        downloaded = 0.0
         i = 0
         scored_local = [t for t in scored_local if t[0].site == site]
 
-        def try_download(candidate: TorrentInfo,
-                         score: float,
-                         exists: bool
-                         ) -> typing.Optional[tuple[float, list[tuple[LocalTorrent, float]]]]:
+        def try_download(
+            candidate: TorrentInfo, score: float, exists: bool
+        ) -> typing.Optional[tuple[float, list[tuple[LocalTorrent, float]]]]:
             nonlocal downloaded, i, remaining, scored_local, self
             if downloaded + candidate.file_size > self.max_download_size:
                 return None
-            if score == 0.:
+            if score == 0.0:
                 return None
             # 能下载就直接下载。
             if candidate.file_size < remaining or exists:
@@ -106,7 +111,11 @@ class PlannerConfig:
                     downloaded += candidate.file_size
                     return candidate.file_size, []
                 return 0, []
-            _debug("剩余空间 %s，文件大小 %s，准备尝试移除现有冷门种子", S(remaining), S(candidate.file_size))
+            _debug(
+                "剩余空间 %s，文件大小 %s，准备尝试移除现有冷门种子",
+                S(remaining),
+                S(candidate.file_size),
+            )
             # 否则尝试移除分数相对低的本地种子。
             removable_size = 0
             removable = []
@@ -114,9 +123,15 @@ class PlannerConfig:
                 # 分数小于零的意味着不可移除（正在下载或上传中等等）。
                 if torrent_score >= score or torrent_score < 0:
                     continue
-                if any(removable_hashes[t.torrent.hash] < 0 for t in duplicates[torrent.torrent.hash]):
+                if any(
+                    removable_hashes[t.torrent.hash] < 0
+                    for t in duplicates[torrent.torrent.hash]
+                ):
                     continue
-                torrent_score += sum(removable_hashes[t.torrent.hash] for t in duplicates[torrent.torrent.hash])
+                torrent_score += sum(
+                    removable_hashes[t.torrent.hash]
+                    for t in duplicates[torrent.torrent.hash]
+                )
                 # 我们以北邮人为主，其它站点说实话感觉不太活跃，分数不会太高。
                 if torrent_score >= score:
                     return None
@@ -140,23 +155,33 @@ class Planner:
     def __init__(self, configs: list[PlannerConfig]):
         self.configs = configs
 
-    def plan(self,
-             scored_local: list[tuple[LocalTorrent, float]],
-             remote: list[tuple[TorrentInfo, float]],
-             cache: TorrentStore,
-             site: str,
-             exists=False,
-             ) -> tuple[list[tuple[LocalTorrent, str]], list[tuple[TorrentInfo, str]], dict[str, list[LocalTorrent]]]:
+    def plan(
+        self,
+        scored_local: list[tuple[LocalTorrent, float]],
+        remote: list[tuple[TorrentInfo, float]],
+        cache: TorrentStore,
+        site: str,
+        exists=False,
+    ) -> tuple[
+        list[tuple[LocalTorrent, str]],
+        list[tuple[TorrentInfo, str]],
+        dict[str, list[LocalTorrent]],
+    ]:
         # duplicates 用于检查共用文件的种子。
         used_spaces, local, duplicates = self.merge_torrent_info(scored_local, cache)
         # removable_hashes 用于检查共用文件的种子是否可以移除，以及它们共享分数。
         removable_hashes: dict[str, float] = {}
         for config in self.configs:
-            removable_hashes.update(dict((t.torrent.hash, score) for t, score in local.get(config.download_dir, [])))
+            removable_hashes.update(
+                dict(
+                    (t.torrent.hash, score)
+                    for t, score in local.get(config.download_dir, [])
+                )
+            )
 
         planners = {}
         for config in self.configs:
-            used_space = used_spaces.get(config.download_dir, 0.)
+            used_space = used_spaces.get(config.download_dir, 0.0)
             config.clamp(used_space)
             planners[config.download_dir] = config.downloader(
                 config.max_total_size - used_space,
@@ -175,25 +200,43 @@ class Planner:
                     plans[config.download_dir] = plan
             if len(plans) == 0:
                 continue
-            _, _, directory = sorted([
-                (to_be_downloaded, sum(score for _, score in rm_list), directory)
-                for directory, (to_be_downloaded, rm_list) in plans.items()
-            ])[0]
+            _, _, directory = sorted(
+                [
+                    (to_be_downloaded, sum(score for _, score in rm_list), directory)
+                    for directory, (to_be_downloaded, rm_list) in plans.items()
+                ]
+            )[0]
             removable.extend((torrent, directory) for torrent, _ in plans[directory][1])
             downloadable.append((candidate, directory))
         return removable, downloadable, duplicates
 
-    def estimate(self, local_torrents: list[tuple[LocalTorrent, float]], removable: list[tuple[LocalTorrent, str]],
-                 downloadable: list[tuple[TorrentInfo, str]], cache: TorrentStore, exists=False,
-                 ) -> tuple[dict[str, SpaceChange], dict[str, tuple[list[TorrentInfo], list[LocalTorrent]]]]:
+    def estimate(
+        self,
+        local_torrents: list[tuple[LocalTorrent, float]],
+        removable: list[tuple[LocalTorrent, str]],
+        downloadable: list[tuple[TorrentInfo, str]],
+        cache: TorrentStore,
+        exists=False,
+    ) -> tuple[
+        dict[str, SpaceChange], dict[str, tuple[list[TorrentInfo], list[LocalTorrent]]]
+    ]:
         used, _, _ = self.merge_torrent_info(local_torrents, cache)
         stats = {}
         grouped = {}
         for config in self.configs:
-            used_space = used.get(config.download_dir, 0.)
-            deleted = [t for t, directory in removable if config.is_under_current_dir(t)]
-            downloaded = [] if exists else [t for t, directory in downloadable
-                                            if directory == config.download_dir]
+            used_space = used.get(config.download_dir, 0.0)
+            deleted = [
+                t for t, directory in removable if config.is_under_current_dir(t)
+            ]
+            downloaded = (
+                []
+                if exists
+                else [
+                    t
+                    for t, directory in downloadable
+                    if directory == config.download_dir
+                ]
+            )
             downloaded_size = sum(t.file_size for t in downloaded)
             deleted_size = sum(t.torrent.size for t in deleted)
             stats[config.download_dir] = SpaceChange(
@@ -208,8 +251,9 @@ class Planner:
             )
         return stats, grouped
 
-    def merge_torrent_info(self, local_torrents: list[tuple[LocalTorrent, float]],
-                           cache: TorrentStore):
+    def merge_torrent_info(
+        self, local_torrents: list[tuple[LocalTorrent, float]], cache: TorrentStore
+    ):
         """
         进行统计，返回一大堆奇奇怪怪的东西。
 
@@ -247,10 +291,16 @@ class Planner:
         for _, same_torrents in path_torrents.items():
             if len(same_torrents) > 1:
                 hashes = dict((t.torrent.hash, t) for t in same_torrents)
-                _debug("共享相同文件的种子：\n%s", "\n".join(
-                    f"{t.torrent.hash} {t.torrent.name}" for t in same_torrents))
+                _debug(
+                    "共享相同文件的种子：\n%s",
+                    "\n".join(
+                        f"{t.torrent.hash} {t.torrent.name}" for t in same_torrents
+                    ),
+                )
                 for torrent in same_torrents:
-                    duplicates[torrent.torrent.hash] = [hashes[h] for h in (hashes.keys() - {torrent.torrent.hash})]
+                    duplicates[torrent.torrent.hash] = [
+                        hashes[h] for h in (hashes.keys() - {torrent.torrent.hash})
+                    ]
             else:
                 duplicates[same_torrents[0].torrent.hash] = []
         return total, local, duplicates

@@ -52,23 +52,23 @@ def convert_iec_size(size: str) -> float:
         if unit in units:
             unit_power = units.index(unit)
             size = size[0:-unit_len]
-            return float(size.strip()) * 1024 ** unit_power
+            return float(size.strip()) * 1024**unit_power
     _warning("无法识别的数据量单位：%s", size)
-    return 0.
+    return 0.0
 
 
 def int_or(s: str, default=0) -> int:
     """安全地将字符串解析成 int 值。"""
     try:
-        return int(s.replace(',', '').strip())
+        return int(s.replace(",", "").strip())
     except ValueError:
         return default
 
 
-def float_or(s: str, default=0.) -> float:
+def float_or(s: str, default=0.0) -> float:
     """安全地将字符串解析成 float 值。"""
     try:
-        return float(s.replace(',', '').strip())
+        return float(s.replace(",", "").strip())
     except ValueError:
         return default
 
@@ -90,12 +90,14 @@ def colorize_logger(name: typing.Optional[str] = "byre") -> None:
     class ColorFormatter(logging.Formatter):
         def __init__(self):
             super().__init__(
-                fmt=" ".join((
-                    click.style("%(asctime)s", dim=True),
-                    "%(levelname)5s",
-                    click.style("%(name)s", fg="yellow"),
-                    "%(message)s",
-                )),
+                fmt=" ".join(
+                    (
+                        click.style("%(asctime)s", dim=True),
+                        "%(levelname)5s",
+                        click.style("%(name)s", fg="yellow"),
+                        "%(message)s",
+                    )
+                ),
                 datefmt="%Y-%m-%d %H:%M:%S",
             )
 
@@ -143,6 +145,7 @@ class S:
 
 
 T = typing.TypeVar("T")
+
 
 def cast(t: typing.Type[T], value: typing.Any) -> T:
     """

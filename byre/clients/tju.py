@@ -72,10 +72,16 @@ class TjuPtApi(NexusApi):
         return "tju"
 
     @override
-    def list_torrents(self, /, page: int = 0,
-                      sorted_by: NexusSortableField = NexusSortableField.ID,
-                      desc: bool = True, fav: bool = False, search: typing.Optional[str] = None,
-                      **kwargs) -> list[TorrentInfo]:
+    def list_torrents(
+        self,
+        /,
+        page: int = 0,
+        sorted_by: NexusSortableField = NexusSortableField.ID,
+        desc: bool = True,
+        fav: bool = False,
+        search: typing.Optional[str] = None,
+        **kwargs,
+    ) -> list[TorrentInfo]:
         """从 torrents.php 页面提取信息。"""
         if len(kwargs) > 0:
             _warning("不支持的参数：%s", kwargs.keys())
@@ -84,34 +90,52 @@ class TjuPtApi(NexusApi):
             f"torrents.php?page={page}&sort={sorted_by.value}&type={order}&inclbookmarked={int(fav)}"
             + ("" if search is None else f"&search={quote(search)}")
         )
-        return self._extract_torrent_table(page_element.select("table.torrents > tr")[1:])
+        return self._extract_torrent_table(
+            page_element.select("table.torrents > tr")[1:]
+        )
 
     @classmethod
     @override
-    def _extract_updated_at(cls, cells: bs4.element.ResultSet[bs4.Tag],
-                            live_time_cell: typing.Optional[int]) -> datetime.datetime:
+    def _extract_updated_at(
+        cls, cells: bs4.element.ResultSet[bs4.Tag], live_time_cell: typing.Optional[int]
+    ) -> datetime.datetime:
         return (
-            datetime.datetime.fromisoformat(cells[live_time_cell].get_text(separator=" ", strip=False))
-            if live_time_cell is not None else datetime.datetime.now()
+            datetime.datetime.fromisoformat(
+                cells[live_time_cell].get_text(separator=" ", strip=False)
+            )
+            if live_time_cell is not None
+            else datetime.datetime.now()
         )
 
     @classmethod
     @override
     def _extract_info_bar_ranking(cls, page: bs4.Tag) -> int:
-        tag = [tag for tag in page.select("#info_block span.color_active") if "上传排名" in tag.text][0]
+        tag = [
+            tag
+            for tag in page.select("#info_block span.color_active")
+            if "上传排名" in tag.text
+        ][0]
         return int_or(not_none(tag.find_next_sibling(name="a")).text.strip())
 
     @classmethod
     @override
     def _extract_page_subtitle(cls, page: bs4.Tag) -> str:
-        tag = [tag for tag in page.select(".embedded table tr td") if "副标题" in tag.text][0]
+        tag = [
+            tag for tag in page.select(".embedded table tr td") if "副标题" in tag.text
+        ][0]
         return not_none(tag.next_sibling).text.strip()
 
     @classmethod
     def _extract_basic_info_row(cls, page: bs4.Tag) -> dict[str, str]:
-        row = [tag for tag in page.select(".embedded table tr td") if "基本信息" in tag.text][0]
+        row = [
+            tag
+            for tag in page.select(".embedded table tr td")
+            if "基本信息" in tag.text
+        ][0]
         info = {}
-        for tag in cast(bs4.Tag, not_none(row.find_next("td"))).find_all("b", recursive=False):
+        for tag in cast(bs4.Tag, not_none(row.find_next("td"))).find_all(
+            "b", recursive=False
+        ):
             info[tag.get_text(strip=True)] = tag.next_sibling.text.strip()
         return info
 
@@ -130,9 +154,15 @@ class TjuPtApi(NexusApi):
     @classmethod
     @override
     def _extract_page_upload_time(cls, page: bs4.Tag) -> datetime.datetime:
-        row = [tag for tag in page.select(".embedded table tr td") if "种子名称" in tag.text][0]
-        text = not_none(not_none(row.find_next("td"))
-                        .find(string=lambda s: "发布于" in s) # type: ignore
-                        ).text
+        row = [
+            tag
+            for tag in page.select(".embedded table tr td")
+            if "种子名称" in tag.text
+        ][0]
+        text = not_none(
+            not_none(row.find_next("td")).find(
+                string=lambda s: ("发布于" in s) # type: ignore
+            )
+        ).text
         i = text.index("发布于")
-        return datetime.datetime.fromisoformat(text[i + 3:].strip())
+        return datetime.datetime.fromisoformat(text[i + 3 :].strip())

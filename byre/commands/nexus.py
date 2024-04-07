@@ -32,7 +32,9 @@ _warning = _logger.warning
 class NexusCommand(ConfigurableGroup):
     """NexusPHP 站点的查询命令。"""
 
-    def __init__(self, client_cls: typing.Type[NexusClient], api_cls: typing.Type[NexusApi]):
+    def __init__(
+        self, client_cls: typing.Type[NexusClient], api_cls: typing.Type[NexusApi]
+    ):
         #: 对应的站点 client。
         self.client_cls = client_cls
         #: 对应的站点 API。
@@ -54,15 +56,21 @@ class NexusCommand(ConfigurableGroup):
     def configure(self, config: GlobalConfig):
         site = self.api_cls.site()
         proxy = config.optional(str, "", site, "http_proxy")
-        self._api = self.api_cls(self.client_cls(
-            config.require(str, site, "username"),
-            config.require(str, site, "password", password=True),
-            config.optional(str, "byr.cookies", site, "cookie_cache"),
-            proxies={
-                "http": proxy,
-                "https": proxy,
-            } if proxy else None,
-        ))
+        self._api = self.api_cls(
+            self.client_cls(
+                config.require(str, site, "username"),
+                config.require(str, site, "password", password=True),
+                config.optional(str, "byr.cookies", site, "cookie_cache"),
+                proxies=(
+                    {
+                        "http": proxy,
+                        "https": proxy,
+                    }
+                    if proxy
+                    else None
+                ),
+            )
+        )
 
     @click.command
     @click.argument("seed", type=click.STRING, metavar="<站点种子链接或是种子 ID>")
@@ -71,7 +79,9 @@ class NexusCommand(ConfigurableGroup):
         pretty.pretty_torrent_info(self.api.torrent(pretty.parse_url_id(seed)))
 
     @click.command
-    @click.argument("user", type=click.STRING, default="0", metavar="[站点用户链接或是用户 ID]")
+    @click.argument(
+        "user", type=click.STRING, default="0", metavar="[站点用户链接或是用户 ID]"
+    )
     def user(self, user: str):
         """显示用户信息。"""
         u = self.api.user_info(pretty.parse_url_id(user))
@@ -80,8 +90,15 @@ class NexusCommand(ConfigurableGroup):
         pretty.pretty_user_info(u)
 
     @click.command
-    @click.option("-k", "--kind", type=click.Choice([p.name.lower() for p in UserTorrentKind], case_sensitive=False),
-                  default="seeding", help="用户种子列表")
+    @click.option(
+        "-k",
+        "--kind",
+        type=click.Choice(
+            [p.name.lower() for p in UserTorrentKind], case_sensitive=False
+        ),
+        default="seeding",
+        help="用户种子列表",
+    )
     def mine(self, kind: str):
         """显示用户的种子列表（如正在做种、正在下载等列表）。"""
         torrents = self.api.list_user_torrents(UserTorrentKind[kind.upper()])
@@ -101,39 +118,72 @@ class NexusCommand(ConfigurableGroup):
     @click.command
     @click.argument("search", type=click.STRING, required=True, metavar="<搜索内容>")
     @click.option("-p", "--page", type=click.INT, default=0, help="页码")
-    @click.option("-o", "--order",
-                  type=click.Choice([p.name.lower() for p in NexusSortableField], case_sensitive=False),
-                  default="id", help="排序类型")
+    @click.option(
+        "-o",
+        "--order",
+        type=click.Choice(
+            [p.name.lower() for p in NexusSortableField], case_sensitive=False
+        ),
+        default="id",
+        help="排序类型",
+    )
     @click.option("--desc/--asc", default=True, help="降序排序（默认）/ 升序排序")
     def search(self, search: str, page: int, order: str, desc: bool):
         """搜索种子。"""
-        torrents = self.api.list_torrents(page=page, sorted_by=NexusSortableField[order.upper()], desc=desc,
-                                          search=search)
+        torrents = self.api.list_torrents(
+            page=page,
+            sorted_by=NexusSortableField[order.upper()],
+            desc=desc,
+            search=search,
+        )
         pretty.pretty_torrent_list(torrents)
 
     @click.command
     @click.argument("page", type=click.INT, default=0, metavar="[种子页面页码]")
-    @click.option("-o", "--order",
-                  type=click.Choice([p.name.lower() for p in NexusSortableField], case_sensitive=False),
-                  default="id", help="排序类型")
+    @click.option(
+        "-o",
+        "--order",
+        type=click.Choice(
+            [p.name.lower() for p in NexusSortableField], case_sensitive=False
+        ),
+        default="id",
+        help="排序类型",
+    )
     @click.option("--desc/--asc", default=True, help="降序排序（默认）/ 升序排序")
     def list(self, page: int, order: str, desc: bool):
         """显示种子列表（页码从零开始）。"""
-        torrents = self.api.list_torrents(page=page, sorted_by=NexusSortableField[order.upper()], desc=desc)
+        torrents = self.api.list_torrents(
+            page=page, sorted_by=NexusSortableField[order.upper()], desc=desc
+        )
         pretty.pretty_torrent_list(torrents)
 
 
 class ByrCommand(NexusCommand):
     @click.command
     @click.argument("page", type=click.INT, default=0, metavar="[种子页面页码]")
-    @click.option("-p", "--promotion",
-                  type=click.Choice([p.name.lower() for p in TorrentPromotion], case_sensitive=False),
-                  default="any", help="促销类型")
-    @click.option("-o", "--order",
-                  type=click.Choice([p.name.lower() for p in NexusSortableField], case_sensitive=False),
-                  default="id", help="排序类型")
+    @click.option(
+        "-p",
+        "--promotion",
+        type=click.Choice(
+            [p.name.lower() for p in TorrentPromotion], case_sensitive=False
+        ),
+        default="any",
+        help="促销类型",
+    )
+    @click.option(
+        "-o",
+        "--order",
+        type=click.Choice(
+            [p.name.lower() for p in NexusSortableField], case_sensitive=False
+        ),
+        default="id",
+        help="排序类型",
+    )
     def list(self, page: int, promotion: str, order: str):
         """显示北邮人种子列表（页码从零开始）。"""
-        torrents = self.api.list_torrents(page, sorted_by=NexusSortableField[order.upper()],
-                                          promotion=TorrentPromotion[promotion.upper()])
+        torrents = self.api.list_torrents(
+            page,
+            sorted_by=NexusSortableField[order.upper()],
+            promotion=TorrentPromotion[promotion.upper()],
+        )
         pretty.pretty_torrent_list(torrents)

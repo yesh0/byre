@@ -20,8 +20,14 @@ import math
 import time
 from dataclasses import dataclass
 
-from byre.clients.data import TorrentInfo, PROMOTION_TWO_UP, PROMOTION_FREE, PROMOTION_HALF_DOWN, \
-    PROMOTION_THIRTY_DOWN, LocalTorrent
+from byre.clients.data import (
+    TorrentInfo,
+    PROMOTION_TWO_UP,
+    PROMOTION_FREE,
+    PROMOTION_HALF_DOWN,
+    PROMOTION_THIRTY_DOWN,
+    LocalTorrent,
+)
 
 
 def _piecewise_linear(points: tuple[tuple[float, float], ...], x: float) -> float:
@@ -49,7 +55,7 @@ def _sigmoid(x: float) -> float:
     try:
         return 1 / (1 + math.exp(-x))
     except OverflowError:
-        return 0.
+        return 0.0
 
 
 @dataclass
@@ -65,34 +71,45 @@ class Scorer:
     removal_exemption_days: float
     """不会移除才刚刚下下来几天的种子。"""
 
-    file_size_weights: tuple[tuple[float, float], ...] = ((0., 0.1), (2., 1.0), (15., 1.0), (60., 0.1), (500., 0.01))
+    file_size_weights: tuple[tuple[float, float], ...] = (
+        (0.0, 0.1),
+        (2.0, 1.0),
+        (15.0, 1.0),
+        (60.0, 0.1),
+        (500.0, 0.01),
+    )
     """按文件大小来计算的评分系数，由点指定的分段线性函数。"""
 
-    leecher_weights: tuple[tuple[float, float], ...] = ((0., 0.1), (2., 0.6), (6., 0.9), (10., 1.0))
+    leecher_weights: tuple[tuple[float, float], ...] = (
+        (0.0, 0.1),
+        (2.0, 0.6),
+        (6.0, 0.9),
+        (10.0, 1.0),
+    )
     """按下载者数量来计算的评分系数，主要用来表示太少人下载时的风险程度。"""
 
     def score_downloading(self, torrent: TorrentInfo, recovery=True) -> float:
         """为某个种子的下载价值评分，输出是下载完成后每天预期的分享率。"""
         if torrent.seeders <= 0:
             # 没法下。
-            return 0.
+            return 0.0
         if torrent.leechers <= 0:
             # 就贪心。
-            return 0.
+            return 0.0
 
         finished_ratio = 0.5 * _sigmoid(-torrent.live_time + 30) + 0.5
         value = (
-                ((finished_ratio * torrent.finished + torrent.leechers * 1.5)
-                 / (torrent.live_time + 2) + torrent.leechers)
-                / (torrent.seeders + torrent.leechers + 1)
-        )
+            (finished_ratio * torrent.finished + torrent.leechers * 1.5)
+            / (torrent.live_time + 2)
+            + torrent.leechers
+        ) / (torrent.seeders + torrent.leechers + 1)
         value *= _piecewise_linear(self.leecher_weights, torrent.leechers)
 
         if PROMOTION_TWO_UP in torrent.promotions:
             value *= 2
 
         discounts = {
-            PROMOTION_FREE: 1.,
+            PROMOTION_FREE: 1.0,
             PROMOTION_HALF_DOWN: 0.5,
             PROMOTION_THIRTY_DOWN: 0.7,
         }
@@ -101,11 +118,15 @@ class Scorer:
                 value *= 1 + self.free_weight * discount
                 break
 
-        size_ratio = _sigmoid((finished_ratio + torrent.finished) / (torrent.live_time + 1) - 20)
-        value *= (1 - size_ratio) * _piecewise_linear(self.file_size_weights, torrent.file_size) + size_ratio
+        size_ratio = _sigmoid(
+            (finished_ratio + torrent.finished) / (torrent.live_time + 1) - 20
+        )
+        value *= (1 - size_ratio) * _piecewise_linear(
+            self.file_size_weights, torrent.file_size
+        ) + size_ratio
 
         if recovery and value < 1 / self.cost_recovery_days:
-            return 0.
+            return 0.0
 
         return value
 
@@ -113,17 +134,20 @@ class Scorer:
         """为某个正在上传的种子的价值评分，输出是每天预期的分享率。负分不应被删除。"""
         # 不删除正在上传的种子。
         if torrent.torrent.upspeed > 0:
-            return -1.
+            return -1.0
         # 不删除没下载完的种子。
         if torrent.torrent.amount_left > 0:
-            return -1.
+            return -1.0
         # 不删除豁免期内的种子。
-        if torrent.torrent.completion_on + (self.removal_exemption_days * 24 * 60 * 60) > time.time():
-            return -1.
+        if (
+            torrent.torrent.completion_on + (self.removal_exemption_days * 24 * 60 * 60)
+            > time.time()
+        ):
+            return -1.0
         # 不删除标记了 keep 的种子。
         if "keep" in torrent.torrent.tags:
-            return -1.
+            return -1.0
         info = torrent.estimate_info()
         if info.seeders <= 1:
-            return -1.
+            return -1.0
         return self.score_downloading(info, recovery=False)

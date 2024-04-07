@@ -95,7 +95,9 @@ class TorrentStore:
     def save_extra_torrents(self, local: list[LocalTorrent]) -> list[TorrentDO]:
         """尝试将本地还没有写入数据库的种子的信息写入数据库。"""
         torrents: list[typing.Optional[TorrentDO]] = [None] * len(local)
-        for i, chunk in enumerate(local[i: i + 100] for i in range(0, len(local), 100)):
+        for i, chunk in enumerate(
+            local[i : i + 100] for i in range(0, len(local), 100)
+        ):
             hash_index = dict((t.torrent.hash.lower(), j) for j, t in enumerate(chunk))
             existing = self.list_torrents(
                 f"WHERE hash IN ({','.join('?' * len(hash_index))})",
@@ -105,26 +107,44 @@ class TorrentStore:
             for t in existing:
                 torrents[i * 100 + hash_index[t.hash]] = t
             for h in missing:
-                torrents[i * 100 + hash_index[h]] = self.save_local_torrent(chunk[hash_index[h]])
+                torrents[i * 100 + hash_index[h]] = self.save_local_torrent(
+                    chunk[hash_index[h]]
+                )
         assert all(t is not None for t in torrents)
         return typing.cast(list[TorrentDO], torrents)
 
-    def save_fetched_torrents(self, remote: list[TorrentInfo],
-                              torrent_fetcher: typing.Callable[[TorrentInfo], bytes]):
+    def save_fetched_torrents(
+        self,
+        remote: list[TorrentInfo],
+        torrent_fetcher: typing.Callable[[TorrentInfo], bytes],
+    ):
         missing = []
         for torrent in remote:
-            self.cursor.execute("SELECT 1 FROM torrent WHERE site = ? AND seed_id = ?", (torrent.site, torrent.seed_id))
+            self.cursor.execute(
+                "SELECT 1 FROM torrent WHERE site = ? AND seed_id = ?",
+                (torrent.site, torrent.seed_id),
+            )
             if self.cursor.rowcount == 0:
                 missing.append(torrent)
         for torrent in missing:
             content = torrent_fetcher(torrent)
             info_hash, paths = self.decode_torrent_file(content)
             path_hash = self.hash_paths(paths)
-            self.save_torrent(TorrentDO(info_hash, torrent.title, path_hash, torrent.site, torrent.seed_id))
+            self.save_torrent(
+                TorrentDO(
+                    info_hash, torrent.title, path_hash, torrent.site, torrent.seed_id
+                )
+            )
 
     def save_local_torrent(self, torrent: LocalTorrent) -> TorrentDO:
         path_hash = self.hash_local_path(torrent)
-        info = TorrentDO(torrent.torrent.hash.lower(), torrent.torrent.name, path_hash, torrent.site, torrent.seed_id)
+        info = TorrentDO(
+            torrent.torrent.hash.lower(),
+            torrent.torrent.name,
+            path_hash,
+            torrent.site,
+            torrent.seed_id,
+        )
         self.save_torrent(info)
         self.db.commit()
         return info
@@ -134,12 +154,24 @@ class TorrentStore:
         try:
             self.cursor.execute(
                 "INSERT INTO torrent VALUES (?, ?, ?, ?, ?)",
-                (torrent.hash, torrent.name, torrent.path_hash, torrent.site, torrent.seed_id),
+                (
+                    torrent.hash,
+                    torrent.name,
+                    torrent.path_hash,
+                    torrent.site,
+                    torrent.seed_id,
+                ),
             )
             self.db.commit()
             return True
         except sqlite3.DatabaseError as e:
-            _warning("数据库保存“[%s-%d]%s”出错", torrent.site, torrent.seed_id, torrent.name, exc_info=e)
+            _warning(
+                "数据库保存“[%s-%d]%s”出错",
+                torrent.site,
+                torrent.seed_id,
+                torrent.name,
+                exc_info=e,
+            )
             self.db.rollback()
             return False
 
@@ -147,7 +179,8 @@ class TorrentStore:
         """列出所有数据库中有的（也不一定下载了的）种子。"""
         torrents = []
         results = self.cursor.execute(
-            "SELECT hash, name, path_hash, site, seed_id FROM torrent" + (" " + clause if clause else ""),
+            "SELECT hash, name, path_hash, site, seed_id FROM torrent"
+            + (" " + clause if clause else ""),
             parameters,
         ).fetchall()
         for h, name, path_hash, site, seed_id in results:
@@ -155,7 +188,9 @@ class TorrentStore:
         return torrents
 
     def list_similar_torrents(self, torrent: LocalTorrent) -> list[TorrentDO]:
-        return self.list_torrents("WHERE path_hash = ?", (self.hash_local_path(torrent),))
+        return self.list_torrents(
+            "WHERE path_hash = ?", (self.hash_local_path(torrent),)
+        )
 
     @classmethod
     def decode_torrent_file(cls, content: bytes) -> tuple[str, dict[str, int]]:
@@ -165,8 +200,13 @@ class TorrentStore:
         if b"files" not in info:
             paths = {root: info[b"length"]}
         else:
-            paths = dict(("/".join((root, *(segment.decode() for segment in file[b"path"]))), file[b"length"])
-                         for file in info[b"files"])
+            paths = dict(
+                (
+                    "/".join((root, *(segment.decode() for segment in file[b"path"]))),
+                    file[b"length"],
+                )
+                for file in info[b"files"]
+            )
         return cls.hash_info(info), paths
 
     @classmethod
@@ -178,11 +218,23 @@ class TorrentStore:
         def no_backslash(s: str) -> str:
             return s.replace("\\", "/")
 
-        return hashlib.sha256(
-            b"\0".join(sorted(f"{no_backslash(path)} {size}".encode("utf-8") for path, size in paths.items()))
-        ).hexdigest().lower()
+        return (
+            hashlib.sha256(
+                b"\0".join(
+                    sorted(
+                        f"{no_backslash(path)} {size}".encode("utf-8")
+                        for path, size in paths.items()
+                    )
+                )
+            )
+            .hexdigest()
+            .lower()
+        )
 
     @classmethod
     def hash_local_path(cls, torrent: LocalTorrent) -> str:
-        local_files = dict((cast(str, file.name), cast(int, file.size)) for file in torrent.torrent.files)
+        local_files = dict(
+            (cast(str, file.name), cast(int, file.size))
+            for file in torrent.torrent.files
+        )
         return cls.hash_paths(local_files)

@@ -48,16 +48,29 @@ class GlobalConfig(click.ParamType):
     def load(self, path: str):
         if not path:
             default_path = setup.default_config_path()
-            for f in ["byre.toml", str(default_path), "/etc/byre.toml",
-                      "/etc/byre/byre.toml"]:
+            for f in [
+                "byre.toml",
+                str(default_path),
+                "/etc/byre.toml",
+                "/etc/byre/byre.toml",
+            ]:
                 if os.path.exists(f):
                     _info("默认选定配置文件：%s", pathlib.Path(f))
                     path = f
                     break
             else:
-                _warning("找不到配置文件“byre.toml”，如果已有配置文件，请尝试使用 -c / --config 选项")
-                if click.prompt("是否创建配置文件？",
-                                type=click.Choice(["yes", "no"]), default="no", prompt_suffix=" ") == "yes":
+                _warning(
+                    "找不到配置文件“byre.toml”，如果已有配置文件，请尝试使用 -c / --config 选项"
+                )
+                if (
+                    click.prompt(
+                        "是否创建配置文件？",
+                        type=click.Choice(["yes", "no"]),
+                        default="no",
+                        prompt_suffix=" ",
+                    )
+                    == "yes"
+                ):
                     path = str(setup.setup().resolve())
                 else:
                     raise FileNotFoundError("找不到配置文件")
@@ -70,7 +83,9 @@ class GlobalConfig(click.ParamType):
         for arg in args:
             if arg not in config:
                 if password:
-                    config = click.prompt(f"请输入 {'.'.join(args)} 配置：", hide_input=True)
+                    config = click.prompt(
+                        f"请输入 {'.'.join(args)} 配置：", hide_input=True
+                    )
                     break
                 raise ValueError(f"缺失 {'.'.join(args)} 配置参数")
             config = config[arg]
@@ -97,35 +112,45 @@ class ConfigurableGroup(click.Group, metaclass=ABCMeta):
         self.configure(ctx.obj["config"])
         return super().invoke(ctx)
 
-    def add_command(self, cmd: click.Command, name: typing.Optional[str] = None) -> None:
+    def add_command(
+        self, cmd: click.Command, name: typing.Optional[str] = None
+    ) -> None:
         inner = cmd.callback
 
         # click 下看起来只能通过这种方法把 self 传进去……
         def callback(*args, **kwargs):
             assert inner
             inner(self, *args, **kwargs)
+
         # 继承下的同一个函数对应的 Command 是同一个，所以必须复制。
-        super().add_command(click.Command(
-            name=cmd.name,
-            context_settings=cmd.context_settings,
-            callback=callback,
-            params=cmd.params,
-            help=cmd.help,
-            epilog=cmd.epilog,
-            short_help=cmd.short_help,
-            options_metavar=cmd.options_metavar,
-            add_help_option=cmd.add_help_option,
-            no_args_is_help=cmd.no_args_is_help,
-            hidden=cmd.hidden,
-            deprecated=cmd.deprecated,
-        ), name)
+        super().add_command(
+            click.Command(
+                name=cmd.name,
+                context_settings=cmd.context_settings,
+                callback=callback,
+                params=cmd.params,
+                help=cmd.help,
+                epilog=cmd.epilog,
+                short_help=cmd.short_help,
+                options_metavar=cmd.options_metavar,
+                add_help_option=cmd.add_help_option,
+                no_args_is_help=cmd.no_args_is_help,
+                hidden=cmd.hidden,
+                deprecated=cmd.deprecated,
+            ),
+            name,
+        )
 
     def register(self, group: click.Group):
         group.add_command(self)
         for attr in (name for name in dir(self) if not name.startswith("_")):
             try:
                 method = getattr(self, attr)
-                if callable(method) and isinstance(method, click.Command) and not isinstance(method, ConfigurableGroup):
+                if (
+                    callable(method)
+                    and isinstance(method, click.Command)
+                    and not isinstance(method, ConfigurableGroup)
+                ):
                     self.add_command(method)
             except RuntimeError as e:
                 if "未初始化" not in e.args[0]:

@@ -59,10 +59,21 @@ class BtCommand(ConfigurableGroup):
         self._config = config
 
     @click.command
-    @click.option("-a", "--all", "wants_all", is_flag=True, help="显示所有种子，包括不是由脚本添加的种子")
+    @click.option(
+        "-a",
+        "--all",
+        "wants_all",
+        is_flag=True,
+        help="显示所有种子，包括不是由脚本添加的种子",
+    )
     @click.option("-s", "--speed", is_flag=True, help="只显示有上传或下载速度的种子")
-    @click.option("-p", "--pt", default="", type=click.Choice(list(byre.clients.SITES.keys()) + [""]),
-                  help="只显示某个 PT 站点的种子")
+    @click.option(
+        "-p",
+        "--pt",
+        default="",
+        type=click.Choice(list(byre.clients.SITES.keys()) + [""]),
+        help="只显示某个 PT 站点的种子",
+    )
     def list(self, wants_all: bool, speed: bool, pt: str):
         """列出本地所有相关种子。"""
         if pt:
@@ -74,10 +85,16 @@ class BtCommand(ConfigurableGroup):
             for site in self.sites.values():
                 site.configure(self.config)
                 remote.extend(site.api.list_user_torrents())
-        torrents = self.api.list_torrents(remote, wants_all=wants_all, site=pt if pt else None)
+        torrents = self.api.list_torrents(
+            remote, wants_all=wants_all, site=pt if pt else None
+        )
         if speed:
-            torrents = [t for t in torrents if t.torrent.dlspeed + t.torrent.upspeed > 0]
-            torrents.sort(key=lambda t: t.torrent.dlspeed + t.torrent.upspeed, reverse=True)
+            torrents = [
+                t for t in torrents if t.torrent.dlspeed + t.torrent.upspeed > 0
+            ]
+            torrents.sort(
+                key=lambda t: t.torrent.dlspeed + t.torrent.upspeed, reverse=True
+            )
         else:
             torrents.sort(key=lambda t: t.torrent.last_activity, reverse=True)
         if len(torrents) == 0:

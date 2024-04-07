@@ -34,11 +34,11 @@ class ByrClient(NexusClient):
     """封装了 `requests.Session`，负责登录、管理会话、发起请求。"""
 
     def __init__(
-            self,
-            username: str,
-            password: str,
-            cookie_file: str,
-            proxies: typing.Optional[dict[str, str]] = None
+        self,
+        username: str,
+        password: str,
+        cookie_file: str,
+        proxies: typing.Optional[dict[str, str]] = None,
     ) -> None:
         super().__init__(username, password, cookie_file, proxies)
         #: 验证码自动识别模块（采用懒加载所以没有附上类型信息）。
@@ -62,7 +62,7 @@ class ByrClient(NexusClient):
                 "logintype": "username",
                 "userinput": self.username,
                 "password": self.password,
-                "autologin":"yes",
+                "autologin": "yes",
             },
             allow_redirects=False,
         )
@@ -89,7 +89,7 @@ class ByrApi(NexusApi):
     @classmethod
     @override
     def _rearrange_table_cells(cls, cells):
-        if cells[0].select_one("a[href^=\"upload.php\"]") is not None:
+        if cells[0].select_one('a[href^="upload.php"]') is not None:
             return cells[1:]
         else:
             return cells
@@ -98,12 +98,17 @@ class ByrApi(NexusApi):
     @override
     def _extract_category(cls, cell: bs4.Tag) -> str:
         link = cell.select_one(".cat-link")
-        return super()._extract_category(cell) if link is None else link.get_text(strip=True)
+        return (
+            super()._extract_category(cell)
+            if link is None
+            else link.get_text(strip=True)
+        )
 
     @classmethod
     @override
-    def _extract_updated_at(cls, cells: bs4.element.ResultSet[bs4.Tag],
-                            live_time_cell: typing.Optional[int]) -> datetime.datetime:
+    def _extract_updated_at(
+        cls, cells: bs4.element.ResultSet[bs4.Tag], live_time_cell: typing.Optional[int]
+    ) -> datetime.datetime:
         if live_time_cell is None:
             return datetime.datetime.now()
         text = cells[live_time_cell].get_text(strip=True)
@@ -120,16 +125,24 @@ class ByrApi(NexusApi):
         text = node.get_text(strip=True)
         if prefix not in text:
             return now
-        time = datetime.datetime.fromisoformat(text[text.find(prefix) + len(prefix):].strip())
+        time = datetime.datetime.fromisoformat(
+            text[text.find(prefix) + len(prefix) :].strip()
+        )
         return min(time, now)
 
     @override
-    def list_torrents(self, /, page: int = 0,
-                      sorted_by: NexusSortableField = NexusSortableField.ID,
-                      desc: bool = True, fav: bool = False, search: typing.Optional[str] = None,
-                      promotion: TorrentPromotion = TorrentPromotion.ANY,
-                      tag: TorrentTag = TorrentTag.ANY,
-                      **kwargs) -> list[TorrentInfo]:
+    def list_torrents(
+        self,
+        /,
+        page: int = 0,
+        sorted_by: NexusSortableField = NexusSortableField.ID,
+        desc: bool = True,
+        fav: bool = False,
+        search: typing.Optional[str] = None,
+        promotion: TorrentPromotion = TorrentPromotion.ANY,
+        tag: TorrentTag = TorrentTag.ANY,
+        **kwargs,
+    ) -> list[TorrentInfo]:
         """从 torrents.php 页面提取信息。"""
         if len(kwargs) > 0:
             _warning("不支持的参数：%s", kwargs.keys())
@@ -139,4 +152,6 @@ class ByrApi(NexusApi):
             f"&pktype={tag.value}&sort={sorted_by.value}&type={order}&inclbookmarked={int(fav)}"
             + ("" if search is None else f"&search={quote(search)}")
         )
-        return self._extract_torrent_table(page_element.select("table.torrents > tr")[1:])
+        return self._extract_torrent_table(
+            page_element.select("table.torrents > tr")[1:]
+        )

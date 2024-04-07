@@ -24,7 +24,13 @@ from urllib.parse import parse_qs, urlparse
 import bs4
 
 from byre.clients.client import NexusClient
-from byre.clients.data import NexusUser, TorrentInfo, TorrentPromotion, TorrentTag, UserTorrentKind
+from byre.clients.data import (
+    NexusUser,
+    TorrentInfo,
+    TorrentPromotion,
+    TorrentTag,
+    UserTorrentKind,
+)
 from byre.utils import cast, convert_iec_size, float_or, int_or, not_none
 
 _logger = logging.getLogger("byre.clients.api")
@@ -85,8 +91,16 @@ class NexusApi(metaclass=ABCMeta):
         self.client.close()
 
     @abstractmethod
-    def list_torrents(self, /, page: int = 0, sorted_by: NexusSortableField = NexusSortableField.ID, desc: bool = True,
-                      fav: bool = False, search: typing.Optional[str] = None, **kwargs) -> list[TorrentInfo]:
+    def list_torrents(
+        self,
+        /,
+        page: int = 0,
+        sorted_by: NexusSortableField = NexusSortableField.ID,
+        desc: bool = True,
+        fav: bool = False,
+        search: typing.Optional[str] = None,
+        **kwargs,
+    ) -> list[TorrentInfo]:
         """从 torrents.php 页面提取信息。"""
 
     def current_user_id(self) -> int:
@@ -96,9 +110,10 @@ class NexusApi(metaclass=ABCMeta):
         page = self.client.get_soup("")
         user_id = self.extract_url_id(
             not_none(
-                    page.select_one("a[href^=userdetails]")
-                    or page.select_one("a[href^=\"/userdetails\"]")
-            ).attrs["href"])
+                page.select_one("a[href^=userdetails]")
+                or page.select_one('a[href^="/userdetails"]')
+            ).attrs["href"]
+        )
         _debug("提取的用户 ID 为：%d", user_id)
         self._user_id = user_id
         return user_id
@@ -115,7 +130,11 @@ class NexusApi(metaclass=ABCMeta):
         排名部分北邮人是 `font.color_bonus` + “上传排行”，北洋园是 `span.color_active` + “上传排名”……
         没想好怎么比较好地兼容不同的站点，总之这里写的是北邮人的版本，有需要的重载吧。
         """
-        ranking_tag = next(tag for tag in page.select("#info_block .color_bonus") if "上传排行" in tag.text)
+        ranking_tag = next(
+            tag
+            for tag in page.select("#info_block .color_bonus")
+            if "上传排行" in tag.text
+        )
         ranking = not_none(ranking_tag.next_sibling).text.strip()
         return int_or(ranking)
 
@@ -143,13 +162,19 @@ class NexusApi(metaclass=ABCMeta):
 
         page = self.client.get_soup(f"userdetails.php?id={user_id}")
         name = page.find("h1")
-        user = NexusUser(self.site(), user_id=user_id, username="" if name is None else name.get_text(strip=True))
+        user = NexusUser(
+            self.site(),
+            user_id=user_id,
+            username="" if name is None else name.get_text(strip=True),
+        )
 
         info_entries = page.select("td.embedded>table>tr")
         # 页面上表格分两列，第一列数据名称，第二列数据；提取成 dict。
         info: dict[str, bs4.Tag] = {}
         for entry in info_entries:
-            cells: bs4.element.ResultSet[bs4.Tag] = entry.find_all("td", recursive=False)
+            cells: bs4.element.ResultSet[bs4.Tag] = entry.find_all(
+                "td", recursive=False
+            )
             if len(cells) != 2:
                 continue
             info[cells[0].get_text(strip=True)] = cells[1]
@@ -170,7 +195,11 @@ class NexusApi(metaclass=ABCMeta):
         if _MANA in info:
             # 北洋园这里在数字后面跟了一个链接，总之能跑就行。
             user.mana = float_or(
-                "".join(c for c in info[_MANA].get_text(strip=True) if c == "." or c.isdigit())
+                "".join(
+                    c
+                    for c in info[_MANA].get_text(strip=True)
+                    if c == "." or c.isdigit()
+                )
             )
 
         if _INVITATIONS in info:
@@ -200,7 +229,9 @@ class NexusApi(metaclass=ABCMeta):
     def torrent(self, seed_id: int) -> TorrentInfo:
         """获取种子详情。"""
         page = self.client.get_soup(f"details.php?id={seed_id}&hit=1")
-        title_tag = cast(bs4.Tag, not_none(page.find("h1", recursive=True), "种子不存在"))
+        title_tag = cast(
+            bs4.Tag, not_none(page.find("h1", recursive=True), "种子不存在")
+        )
         title = next(iter(title_tag.children)).text.strip()
         subtitle = self._extract_page_subtitle(page)
         cat, sec_cat = self._extract_page_categories(page)
@@ -208,7 +239,9 @@ class NexusApi(metaclass=ABCMeta):
         promotions = self._extract_promotion_info(title_tag)
         tag = self._extract_tag(title_tag)
         uploaded_at = self._extract_page_upload_time(page)
-        live_time = (datetime.datetime.now() - uploaded_at).total_seconds() / (24 * 60 * 60)
+        live_time = (datetime.datetime.now() - uploaded_at).total_seconds() / (
+            24 * 60 * 60
+        )
 
         peers = not_none(page.select_one("div#peercount")).get_text(strip=True)
         seeder_re = re.compile("(\\d+)个做种者")
@@ -219,11 +252,17 @@ class NexusApi(metaclass=ABCMeta):
 
         user = self._extract_user_from_a(not_none(page.select_one("h1 + table tr")))
 
-        hash_field = [tag for tag in page.select("h1 + table b") if "Hash码" in tag.text]
+        hash_field = [
+            tag for tag in page.select("h1 + table b") if "Hash码" in tag.text
+        ]
         if len(hash_field) == 0:
             hs = ""
         else:
-            hs = hash_field[0].next_sibling.text.strip() if hash_field[0].next_sibling is not None else ""
+            hs = (
+                hash_field[0].next_sibling.text.strip()
+                if hash_field[0].next_sibling is not None
+                else ""
+            )
 
         return TorrentInfo(
             site=self.site(),
@@ -242,9 +281,9 @@ class NexusApi(metaclass=ABCMeta):
             finished=finished,
             comments=0,
             uploader=user,
-            uploaded=0.,
-            downloaded=0.,
-            ratio=0.,
+            uploaded=0.0,
+            downloaded=0.0,
+            ratio=0.0,
             hash=hs,
         )
 
@@ -252,14 +291,19 @@ class NexusApi(metaclass=ABCMeta):
         res = self.client.get(f"download.php?id={seed_id}")
         return res.content
 
-    def list_user_torrents(self, kind: UserTorrentKind = UserTorrentKind.SEEDING) -> list[TorrentInfo]:
+    def list_user_torrents(
+        self, kind: UserTorrentKind = UserTorrentKind.SEEDING
+    ) -> list[TorrentInfo]:
         """从 Ajax API 获取用户正在上传的种子列表。"""
         # noinspection SpellCheckingInspection
         page = self.client.get_soup(
-            f"getusertorrentlistajax.php?userid={self.current_user_id()}&type={kind.name.lower()}")
+            f"getusertorrentlistajax.php?userid={self.current_user_id()}&type={kind.name.lower()}"
+        )
         if kind != UserTorrentKind.SEEDING:
             # 其它表格基本只有类型和标题两列信息有用
-            return self._extract_torrent_table(page.select("table > tr")[1:], *typing.cast(typing.Any, [None] * 10))
+            return self._extract_torrent_table(
+                page.select("table > tr")[1:], *typing.cast(typing.Any, [None] * 10)
+            )
         # 上传种子表格的格式：
         #   0     1     2      3       4       5       6       7
         # 类型、题目、大小、做种数、下载数、上传量、下载量、分享率
@@ -330,7 +374,9 @@ class NexusApi(metaclass=ABCMeta):
     @classmethod
     def _extract_user_from_a(cls, cell: bs4.Tag) -> NexusUser:
         user = NexusUser(cls.site())
-        user_cell = cell.select_one("a[href^=userdetails]") or cell.select_one("a[href^=\"/userdetails\"]")
+        user_cell = cell.select_one("a[href^=userdetails]") or cell.select_one(
+            'a[href^="/userdetails"]'
+        )
         if user_cell is not None:
             user.user_id, user.username = (
                 cls.extract_url_id(user_cell.attrs["href"]),
@@ -353,11 +399,17 @@ class NexusApi(metaclass=ABCMeta):
 
     @classmethod
     def _extract_page_size(cls, page: bs4.Tag) -> float:
-        return convert_iec_size(not_none(not_none(not_none(page.select_one("span#type")).parent).find(text=re.compile("\\d"))).text)
+        return convert_iec_size(
+            not_none(
+                not_none(not_none(page.select_one("span#type")).parent).find(
+                    text=re.compile("\\d")
+                )
+            ).text
+        )
 
     @classmethod
     def _extract_page_upload_time(cls, page: bs4.Tag) -> datetime.datetime:
-        node = page.select_one("table table span[title^=\"20\"]")
+        node = page.select_one('table table span[title^="20"]')
         now = datetime.datetime.now()
         if node is None:
             return now
@@ -373,18 +425,21 @@ class NexusApi(metaclass=ABCMeta):
         """
         return cells
 
-    def _extract_torrent_table(self, rows: typing.Iterable[bs4.Tag],
-                               comment_cell: typing.Optional[int] = 2,
-                               live_time_cell: typing.Optional[int] = 3,
-                               size_cell: typing.Optional[int] = 4,
-                               seeder_cell: typing.Optional[int] = 5,
-                               leecher_cell: typing.Optional[int] = 6,
-                               finished_cell: typing.Optional[int] = 7,
-                               uploader_cell: typing.Optional[int] = 8,
-                               uploaded_cell: typing.Optional[int] = None,
-                               downloaded_cell: typing.Optional[int] = None,
-                               ratio_cell: typing.Optional[int] = None,
-                               details: bool = False) -> list[TorrentInfo]:
+    def _extract_torrent_table(
+        self,
+        rows: typing.Iterable[bs4.Tag],
+        comment_cell: typing.Optional[int] = 2,
+        live_time_cell: typing.Optional[int] = 3,
+        size_cell: typing.Optional[int] = 4,
+        seeder_cell: typing.Optional[int] = 5,
+        leecher_cell: typing.Optional[int] = 6,
+        finished_cell: typing.Optional[int] = 7,
+        uploader_cell: typing.Optional[int] = 8,
+        uploaded_cell: typing.Optional[int] = None,
+        downloaded_cell: typing.Optional[int] = None,
+        ratio_cell: typing.Optional[int] = None,
+        details: bool = False,
+    ) -> list[TorrentInfo]:
         """
         从 torrents.php 页面的种子表格中提取信息。
 
@@ -399,17 +454,47 @@ class NexusApi(metaclass=ABCMeta):
             # 类型、题目、评论数、存活时间、大小、做种数、下载数、完成数、发布者
 
             cat = self._extract_category(cells[0])
-            comments = int_or(cells[comment_cell].get_text(strip=True), 0) if comment_cell is not None else 0
+            comments = (
+                int_or(cells[comment_cell].get_text(strip=True), 0)
+                if comment_cell is not None
+                else 0
+            )
             uploaded_at = self._extract_updated_at(cells, live_time_cell)
-            size = convert_iec_size(cells[size_cell].get_text(strip=True)) if size_cell is not None else 0.
-            seeders = int_or(cells[seeder_cell].get_text(strip=True)) if seeder_cell is not None else 0
-            leechers = int_or(cells[leecher_cell].get_text(strip=True)) if leecher_cell is not None else 0
-            finished = int_or(cells[finished_cell].get_text(strip=True)) if finished_cell is not None else 0
-            uploaded = convert_iec_size(
-                cells[uploaded_cell].get_text(strip=True)) if uploaded_cell is not None else 0
-            downloaded = convert_iec_size(
-                cells[downloaded_cell].get_text(strip=True)) if downloaded_cell is not None else 0
-            ratio = float_or(cells[ratio_cell].get_text(strip=True)) if ratio_cell is not None else 0.
+            size = (
+                convert_iec_size(cells[size_cell].get_text(strip=True))
+                if size_cell is not None
+                else 0.0
+            )
+            seeders = (
+                int_or(cells[seeder_cell].get_text(strip=True))
+                if seeder_cell is not None
+                else 0
+            )
+            leechers = (
+                int_or(cells[leecher_cell].get_text(strip=True))
+                if leecher_cell is not None
+                else 0
+            )
+            finished = (
+                int_or(cells[finished_cell].get_text(strip=True))
+                if finished_cell is not None
+                else 0
+            )
+            uploaded = (
+                convert_iec_size(cells[uploaded_cell].get_text(strip=True))
+                if uploaded_cell is not None
+                else 0
+            )
+            downloaded = (
+                convert_iec_size(cells[downloaded_cell].get_text(strip=True))
+                if downloaded_cell is not None
+                else 0
+            )
+            ratio = (
+                float_or(cells[ratio_cell].get_text(strip=True))
+                if ratio_cell is not None
+                else 0.0
+            )
             if uploader_cell is not None:
                 user = self._extract_user_from_a(cells[uploader_cell])
             else:
@@ -426,7 +511,11 @@ class NexusApi(metaclass=ABCMeta):
             subtitle_newline = not_none(torrent_link.find_parent("td")).find("br")
             if subtitle_newline is not None:
                 subtitle_node = subtitle_newline.next_sibling
-                subtitle = subtitle_node.get_text() if isinstance(subtitle_node, bs4.element.NavigableString) else ""
+                subtitle = (
+                    subtitle_node.get_text()
+                    if isinstance(subtitle_node, bs4.element.NavigableString)
+                    else ""
+                )
             else:
                 subtitle = ""
             promotions = self._extract_promotion_info(title_cell)
@@ -440,28 +529,31 @@ class NexusApi(metaclass=ABCMeta):
                 second = ""
                 hs = ""
 
-            torrents.append(TorrentInfo(
-                site=self.site(),
-                title=title,
-                sub_title=subtitle,
-                seed_id=byr_id,
-                cat=cat,
-                category=TorrentInfo.convert_byr_category(cat),
-                second_category=second,
-                promotions=promotions,
-                tag=tag,
-                file_size=size,
-                live_time=(datetime.datetime.now() - uploaded_at).total_seconds() / (60 * 60 * 24),
-                seeders=seeders,
-                leechers=leechers,
-                finished=finished,
-                comments=comments,
-                uploader=user,
-                uploaded=uploaded,
-                downloaded=downloaded,
-                ratio=ratio,
-                hash=hs,
-            ))
+            torrents.append(
+                TorrentInfo(
+                    site=self.site(),
+                    title=title,
+                    sub_title=subtitle,
+                    seed_id=byr_id,
+                    cat=cat,
+                    category=TorrentInfo.convert_byr_category(cat),
+                    second_category=second,
+                    promotions=promotions,
+                    tag=tag,
+                    file_size=size,
+                    live_time=(datetime.datetime.now() - uploaded_at).total_seconds()
+                    / (60 * 60 * 24),
+                    seeders=seeders,
+                    leechers=leechers,
+                    finished=finished,
+                    comments=comments,
+                    uploader=user,
+                    uploaded=uploaded,
+                    downloaded=downloaded,
+                    ratio=ratio,
+                    hash=hs,
+                )
+            )
         return torrents
 
     @classmethod
@@ -469,9 +561,13 @@ class NexusApi(metaclass=ABCMeta):
         return not_none(cell.select_one("img")).attrs["title"]
 
     @classmethod
-    def _extract_updated_at(cls, cells: bs4.element.ResultSet[bs4.Tag],
-                            live_time_cell: typing.Optional[int]) -> datetime.datetime:
+    def _extract_updated_at(
+        cls, cells: bs4.element.ResultSet[bs4.Tag], live_time_cell: typing.Optional[int]
+    ) -> datetime.datetime:
         return (
-            datetime.datetime.fromisoformat(not_none(cells[live_time_cell].select_one("span")).attrs["title"])
-            if live_time_cell is not None else datetime.datetime.now()
+            datetime.datetime.fromisoformat(
+                not_none(cells[live_time_cell].select_one("span")).attrs["title"]
+            )
+            if live_time_cell is not None
+            else datetime.datetime.now()
         )

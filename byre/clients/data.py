@@ -40,7 +40,7 @@ class NexusUser:
     level: str = ""
     """用户等级。"""
 
-    mana: float = 0.
+    mana: float = 0.0
     """魔力值。"""
 
     invitations: int = 0
@@ -49,13 +49,13 @@ class NexusUser:
     ranking: int = 0
     """上传排行。"""
 
-    ratio: float = -1.
+    ratio: float = -1.0
     """分享率。"""
 
-    uploaded: float = 0.
+    uploaded: float = 0.0
     """上传量（B）。"""
 
-    downloaded: float = 0.
+    downloaded: float = 0.0
     """下载量（B）。"""
 
     seeding: int = 0
@@ -98,6 +98,7 @@ class TorrentPromotion(enum.Enum):
 
     前面是人类看得懂的描述，后面的数字是北邮人上对应的数字 spstate，用于查询。
     """
+
     ANY = (), 0
     NONE = (), 1
     FREE = (PROMOTION_FREE,), 2
@@ -134,6 +135,7 @@ class TorrentTag(enum.Enum):
 
     数字是北邮人上对应的数字 pktype。
     """
+
     ANY = 0
     TRENDING = 1
     CLASSIC = 2
@@ -146,6 +148,7 @@ class UserTorrentKind(enum.Enum):
 
     后面的数字值没有任何意义。
     """
+
     UPLOADED = 1
     SEEDING = 2
     LEECHING = 3

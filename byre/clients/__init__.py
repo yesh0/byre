@@ -28,4 +28,6 @@ APIS: list[typing.Type[NexusApi]] = [
 
 SITES = dict((api.site(), api) for api in APIS)
 
-CLIENTS = dict((api.site(), client) for client, api in zip([byr.ByrClient, tju.TjuPtClient], APIS))
+CLIENTS = dict(
+    (api.site(), client) for client, api in zip([byr.ByrClient, tju.TjuPtClient], APIS)
+)
