@@ -25,6 +25,7 @@ import qbittorrentapi
 import byre.clients
 from byre import utils
 from byre.clients.data import LocalTorrent, TorrentInfo
+from byre.commands.config import GlobalConfig
 
 _logger = logging.getLogger("byre.bt")
 _debug, _info, _warning, _fatal = _logger.debug, _logger.info, _logger.warning, _logger.fatal
@@ -47,6 +48,11 @@ class BtClient:
         _debug("qBittorrent 信息：软件版本 %s，API 版本 %s", self.client.app.version, self.client.app.web_api_version)
         if self.client.app.version < "v4.5.2":
             raise ConnectionError("请升级到更新的 qBittorrent 版本")
+        #: 一些额外的配置（可通过 load_config 覆写）
+        self.upload_limit = 95.0
+
+    def load_config(self, config: GlobalConfig):
+        self.upload_limit = config.optional(float, 95.0, "qbittorrent", "upload_speed_limit")
 
     def init_webui(self, username: str, password: str):
         """设置 Web UI 的用户名和密码。"""
@@ -109,6 +115,7 @@ class BtClient:
             is_paused=paused,
             rename=title,
             tags=[info.site],
+            upload_limit=int(self.upload_limit * 1024 * 1024)
         )
 
     def rename_torrent(self, torrent: LocalTorrent, info: TorrentInfo) -> None:

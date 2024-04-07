@@ -43,6 +43,7 @@ class BtCommand(ConfigurableGroup):
     @override
     def configure(self, config: GlobalConfig):
         self.api = BtClient(config.require(str, "qbittorrent", "url", password=True))
+        self.api.load_config(config)
         self.config = config
 
     @click.command
