@@ -133,7 +133,7 @@ class NexusApi(metaclass=ABCMeta):
         if downloading.isdigit():
             user.downloading = int_or(downloading)
 
-        connectable = page.select_one("#info_block font[color=green]")
+        connectable = page.select_one(".color_connectable + span")
         user.connectable = connectable is not None and "是" in connectable.text
 
     def user_info(self, user_id: int = 0) -> NexusUser:
