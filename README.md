@@ -46,6 +46,8 @@
 
 ### 安装
 
+建议的 Python 版本：3.9 及以上 
+
 ```console
 $ git clone https://github.com/yesh0/byre.git
 $ pip3 install --use-pep517 ./byre
