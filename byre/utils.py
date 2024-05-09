@@ -19,6 +19,7 @@ import logging
 import re
 import typing
 from dataclasses import dataclass
+from typing import Optional
 
 import click
 
@@ -163,7 +164,7 @@ def cast(t: typing.Type[T], value: typing.Any) -> T:
     raise TypeError(f"类型错误：{type(value)} 无法转为 {t}")
 
 
-def not_none(value: T | None, msg: str | None = "值不能为 None") -> T:
+def not_none(value: Optional[T], msg: Optional[str] = "值不能为 None") -> T:
     """Inline None 值校验。"""
     if value is None:
         raise ValueError(msg)

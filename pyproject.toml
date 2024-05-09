@@ -22,7 +22,7 @@ dependencies = [
     "psutil>=5.9.4",
     "appdirs>=1.4.4",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 readme = "README.md"
 license = {text = "AGPLv3"}
 
