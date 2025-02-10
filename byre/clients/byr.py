@@ -57,17 +57,18 @@ class ByrClient(NexusClient):
         _debug("正在发起登录请求")
         self._rate_limit()
         login_res = self._session.post(
-            self.get_url("takelogin.php"),
-            data={
-                "logintype": "username",
-                "userinput": self.username,
+            self.get_url("api/v2/login.php"),
+            json={
+                "type": "username",
+                "username": self.username,
                 "password": self.password,
-                "autologin": "yes",
+                "remember": True,
             },
             allow_redirects=False,
         )
 
-        if login_res.status_code == 302:
+        if login_res.status_code == 200:
+            _debug("登录成功")
             return
 
         raise ConnectionError("登录请求失败，因为北邮人有封 IP 机制，请谨慎使用")
