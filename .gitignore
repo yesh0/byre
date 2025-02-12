@@ -164,3 +164,5 @@ byre.db
 *.cookies
 byre.toml
 !byre/locales/zh/LC_MESSAGES/messages.mo
+.DS_Store
+.vscode/

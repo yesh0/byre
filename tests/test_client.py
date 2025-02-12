@@ -38,10 +38,9 @@ class TestByrClient(unittest.TestCase):
         self.assertTrue(client.is_logged_in())
         client.close()
 
+        # Try to load cookies
         client = ByrClient(os.environ.get("USERNAME", ""), "",
                            cookie_file=os.path.join(path, "dir", "byr.cookies"))
-        self.assertFalse(client.is_logged_in())
-        client.login(cache=True)
         self.assertTrue(client.is_logged_in())
         client.close()
 
