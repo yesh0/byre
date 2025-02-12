@@ -33,17 +33,6 @@ _debug, _warning = _logger.debug, _logger.warning
 class ByrClient(NexusClient):
     """封装了 `requests.Session`，负责登录、管理会话、发起请求。"""
 
-    def __init__(
-        self,
-        username: str,
-        password: str,
-        cookie_file: str,
-        proxies: typing.Optional[dict[str, str]] = None,
-    ) -> None:
-        super().__init__(username, password, cookie_file, proxies)
-        #: 验证码自动识别模块（采用懒加载所以没有附上类型信息）。
-        self._decaptcha = None
-
     @classmethod
     @override
     def get_url(cls, path: str) -> str:
