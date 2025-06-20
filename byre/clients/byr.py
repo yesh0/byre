@@ -14,8 +14,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """提供北邮人 PT 站的部分读取 API 接口。"""
+import base64
 import datetime
+import json
 import logging
+import requests
 import typing
 from urllib.parse import quote
 
@@ -58,9 +61,21 @@ class ByrClient(NexusClient):
 
         if login_res.status_code == 200:
             _debug("登录成功")
+            try:
+                self.user_id = self._extract_user_id(login_res)
+            except Exception:
+                pass
             return
 
         raise ConnectionError("登录请求失败，因为北邮人有封 IP 机制，请谨慎使用")
+
+    def _extract_user_id(self, login_res: requests.Response):
+        jwt = login_res.json()['data']['auth_token']
+        payload = jwt.split('.')[1]
+        content = json.loads(
+            base64.urlsafe_b64decode(payload + '=' * (4 - len(payload) % 4)),
+        )
+        return int(content['sub'])
 
 
 class ByrApi(NexusApi):

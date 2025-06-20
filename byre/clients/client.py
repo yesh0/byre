@@ -55,6 +55,8 @@ class NexusClient(metaclass=ABCMeta):
         self._request_freq = request_frequency
         #: 会话。
         self._session = requests.Session()
+        #: 用户 ID。
+        self.user_id = None
         if proxies is not None:
             self._session.proxies.update(proxies)
         self._session.headers.update(
@@ -109,6 +111,12 @@ class NexusClient(metaclass=ABCMeta):
                 self.login(cache=False)
             if i != retries - 1:
                 _info("第 %d 次请求失败，正在重试（%s）", i + 1, path)
+                _debug(
+                    "%d: 失败请求 %d (%s)",
+                    i + 1,
+                    res.status_code,
+                    res.headers.get('location', res.headers.get('content-type')),
+                )
         raise ConnectionError(f"所有 {retries} 次请求均失败")
 
     def get_soup(self, path: str, retries: int = 3):

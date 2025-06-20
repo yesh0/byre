@@ -107,6 +107,9 @@ class NexusApi(metaclass=ABCMeta):
         """获取当前用户 ID。"""
         if self._user_id != 0:
             return self._user_id
+        if self.client.user_id is not None:
+            self._user_id = int(self.client.user_id)
+            return self._user_id
         page = self.client.get_soup("")
         user_id = self.extract_url_id(
             not_none(

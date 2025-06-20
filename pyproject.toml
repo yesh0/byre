@@ -2,7 +2,7 @@
 
 [project]
 name = "byre"
-version = "0.1.0"
+version = "0.1.1"
 description = "北邮人命令行操作以及 BT 软件整合实现"
 authors = [
     {name = "Yesh", email = "yesh@aliyun.com"},
